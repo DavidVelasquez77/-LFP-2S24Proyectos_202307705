@@ -86,21 +86,7 @@ program analizador_lexico
                     
                     if (any(char == M)) then
                       
-                        estado = 1
-                        columna = columna + 1
-                        tkn = trim(tkn) // char
-                      
-                    else if (any(char == S)) then
-                        ! numErrores = numErrores + 1
-                        ! errores(numErrores) = ErrorInfo(tkn, "tkn", columna, linea)
-                        ! if (tkn == "grafica")then
-                        !      print *, "si es igual"
-                        ! end if
-                        !! LA PARTE DE ARRIBA ES PARA VALIDAR EL TOKEN 
-                        columna = columna + 1
-                        estado = 2
-                        ! agregar a tabla de tokens el tkn y el char
-                        tkn = ""
+                        es
                     else
                         numErrores = numErrores + 1
                         errores(numErrores) = ErrorInfo(char, "caracter no pertecene", columna, linea)
