@@ -18,7 +18,7 @@ grafica: {
                nombre:"Korea";
                poblacion: 2352342;
                saturacion:40%;
-               bandera: "C:\Users\Vela\Desktop\LFP\PROYECTO1\korea.png";
+               bandera: "C:\Users\Helado\Desktop\Graphvizpruebafinal\guatemala.png";
         }
     }
     continente:{
@@ -33,7 +33,7 @@ grafica: {
                nombre: "Guatemala";
                poblacion: 17263239;
                saturacion:40%;
-               bandera: "C:\Users\Vela\Desktop\LFP\PROYECTO1\guatemala.png";
+               bandera: "C:\Users\Helado\Desktop\Graphvizpruebafinal\guatemala.png";
         }
         pais:{
                nombre:"Chile";
@@ -43,7 +43,6 @@ grafica: {
         }
     }
 }
-
 
 
 
