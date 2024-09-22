@@ -1,0 +1,17 @@
+digraph G {
+"5rchiv0 d3 3ntr4d4 #1 "[shape=Mdiamond];
+ "5rchiv0 d3 3ntr4d4 #1 " -> "Europa";
+    "Belgica"[style=filled, shape=box, label="Belgica\n23%", fillcolor=blue];
+    "Europa" -> "Belgica";
+    "Dinamarca"[style=filled, shape=box, label="Dinamarca\n75%", fillcolor=orange];
+    "Europa" -> "Dinamarca";
+    "Alemania"[style=filled, shape=box, label="Alemania\n93%", fillcolor=red];
+    "Europa" -> "Alemania";
+    "Bulgaria"[style=filled, shape=box, label="Bulgaria\n17%", fillcolor=blue];
+    "Europa" -> "Bulgaria";
+    "Bosnia y Herzegovina"[style=filled, shape=box, label="Bosnia y Herzegovina\n47%", fillcolor=yellow];
+    "Europa" -> "Bosnia y Herzegovina";
+    "Austria"[style=filled, shape=box, label="Austria\n2%", fillcolor=white];
+    "Europa" -> "Austria";
+    "Europa"[style=filled, shape=box, label="Europa\n42%", fillcolor=green];
+}

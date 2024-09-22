@@ -1,0 +1,79 @@
+grafica: {
+    nombre:"nombre de grafico";
+    continente:{
+    nombre:"Asia";
+        pais:{
+               nombre: "Japan";
+               poblacion: 2352342;
+               saturacion:80%;
+               bandera: "C:\imagen.jpg";
+        }
+        pais:{
+               nombre: "China";
+               poblacion: 1350000000;
+               saturacion:95%;
+               bandera: "C:\imagen.jpg";
+        }
+        pais:{
+               nombre:"Korea";
+               poblacion: 2352342;
+               saturacion:40%;
+               bandera: "C:\Users\Vela\Desktop\LFP\PROYECTO1\korea.png";
+        }
+    }
+    continente:{
+    nombre:"America";
+        pais:{
+               nombre: "Canada";
+               poblacion: 23423423;
+               saturacion:65%;
+               bandera: "C:\imagen.jpg";
+        }
+        pais:{
+               nombre: "Guatemala";
+               poblacion: 17263239;
+               saturacion:40%;
+               bandera: "C:\Users\Vela\Desktop\LFP\PROYECTO1\guatemala.png";
+        }
+        pais:{
+               nombre:"Chile";
+               poblacion: 235234234;
+               saturacion:60%;
+               bandera: "C:\imagen.jpg";
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
