@@ -1,0 +1,147 @@
+grafica:{
+nombre: "5rchiv0 d3 3ntr4d4 #1 ";
+	continente:{
+		nombre: "Europa";
+			pais:{
+				 nombre: "ARY Macedonia"; 
+				 poblacion: 2062294; 
+				 saturacion: 25%; 
+				 bandera: "C:\bandera\mk.png";
+			}
+			pais:{
+				 nombre: "Bosnia y Herzegovina"; 
+				 poblacion: 3791622; 
+				 saturacion: 93%; 
+				 bandera: "C:\bandera\ba.png";
+			}
+			pais:{
+				 nombre: "Croacia"; 
+				 poblacion: 4290612; 
+				 saturacion: 33%; 
+				 bandera: "C:\bandera\ht.png";
+			}
+	}
+	continente:{
+		nombre: "Asia";
+			pais:{
+				 nombre: "China"; 
+				 poblacion: 1363350000; 
+				 saturacion: 56%; 
+				 bandera: "C:\bandera\cn.png";
+			}
+			pais:{
+				 nombre: "Brunei"; 
+				 poblacion: 393162; 
+				 saturacion: 50%; 
+				 bandera: "C:\bandera\bn.png";
+			}
+	}
+	continente:{
+		nombre: "Oceania";
+			pais:{
+				 nombre: "Nauru"; 
+				 poblacion: 9945; 
+				 saturacion: 2%; 
+				 bandera: "C:\bandera\nr.png";
+			}
+			pais:{
+				 nombre: "Islas Salomon"; 
+				 poblacion: 581344; 
+				 saturacion: 60%; 
+				 bandera: "C:\bandera\sb.png";
+			}
+			pais:{
+				 nombre: "Indonesia"; 
+				 poblacion: 249866000; 
+				 saturacion: 15%; 
+				 bandera: "C:\bandera\id.png";
+			}
+	}
+	continente:{
+		nombre: "Amercia del norte";
+			pais:{
+				 nombre: "Jamaica"; 
+				 poblacion: 2711476; 
+				 saturacion: 2%; 
+				 bandera: "C:\bandera\jm.png";
+			}
+			pais:{
+				 nombre: "Panama"; 
+				 poblacion: 3405813; 
+				 saturacion: 80%; 
+				 bandera: "C:\bandera\pa.png";
+			}
+			pais:{
+				 nombre: "Estados Unidos"; 
+				 poblacion: 317706000; 
+				 saturacion: 17%; 
+				 bandera: "C:\bandera\us.png";
+			}
+	}
+	continente:{
+		nombre: "America del sur";
+			pais:{
+				 nombre: "Paraguay"; 
+				 poblacion: 6783374; 
+				 saturacion: 20%; 
+				 bandera: "C:\bandera\py.png";
+			}
+			pais:{
+				 nombre: "Guyana"; 
+				 poblacion: 784894; 
+				 saturacion: 47%; 
+				 bandera: "C:\bandera\gy.png";
+			}
+			pais:{
+				 nombre: "Chile"; 
+				 poblacion: 16341929; 
+				 saturacion: 39%; 
+				 bandera: "C:\bandera\cl.png";
+			}
+			pais:{
+				 nombre: "Surinam"; 
+				 poblacion: 534189; 
+				 saturacion: 75%; 
+				 bandera: "C:\bandera\sr.png";
+			}
+			pais:{
+				 nombre: "Colombia"; 
+				 poblacion: 47506000; 
+				 saturacion: 28%; 
+				 bandera: "C:\bandera\co.png";
+			}
+	}
+	continente:{
+		nombre: "Africa";
+			pais:{
+				 nombre: "Reunion"; 
+				 poblacion: 173615000; 
+				 saturacion: 66%; 
+				 bandera: "C:\bandera\ng.png";
+			}
+			pais:{
+				 nombre: "Chad"; 
+				 poblacion: 12825000; 
+				 saturacion: 49%; 
+				 bandera: "C:\bandera\td.png";
+			}
+			pais:{
+				 nombre: "Cabo Verde"; 
+				 poblacion: 491875; 
+				 saturacion: 23%; 
+				 bandera: "C:\bandera\cv.png";
+			}
+			pais:{
+				 nombre: "Costa de Marfil"; 
+				 poblacion: 23202000; 
+				 saturacion: 76%; 
+				 bandera: "C:\bandera\ci.png";
+			}
+			pais:{
+				 nombre: "Ruanda"; 
+				 poblacion: 10537222; 
+				 saturacion: 89%; 
+				 bandera: "C:\bandera\rw.png";
+			}
+	}
+}

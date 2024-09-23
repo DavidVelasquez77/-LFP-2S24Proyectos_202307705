@@ -167,9 +167,10 @@ class OrgEditor:
         ruta_actual = os.path.dirname(os.path.abspath(__file__))
         ruta_archivo = os.path.join(ruta_actual, nombre_archivo)
         if os.path.exists(ruta_archivo):
-            webbrowser.open('file://' + ruta_archivo)
+            webbrowser.open('file://' + os.path.abspath(ruta_archivo))
         else:
             messagebox.showerror("Error", f"No se encontró el archivo {nombre_archivo}")
+
 
     def analizar(self):
         contenido = self.texto.get('1.0', ctk.END)

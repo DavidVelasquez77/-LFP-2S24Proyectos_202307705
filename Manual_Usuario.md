@@ -1,30 +1,31 @@
 # Manual De Usuario
 
-En esta ocasión se realizó un proyecto con el propósito de crear un estilo de editor de texto para poder determinar el mejor país para establecer un comercio basado en la saturación de los paises propuestos en el archivo .ORG que se debe de cargar.
+En este proyecto se desarrolló una aplicación con el objetivo de analizar cuál es el mejor país para establecer un comercio, basándose en la saturación de los países propuestos en un archivo .ORG que se debe cargar en el programa.
 
-Para la utilización del mismo, se requiere que se pueda descargar el repositorio completo. Por lo regular, se descarga el .zip del realese propuesto, por lo que deberá de descomprimirlo. Ahora bien, habra una consola e ingrese este comando `cd Project\ 1`, luego introduzca `cd Python` y por último `py Main.py`. Esto, básicamente sirve para acceder al archivo .py en donde se encuentra el main de Python y permite ejecutarlo. Habiendo introducido esto, se le desplegará la aplicación la cual luce así:
+Para utilizar la aplicación, primero debe descargarse el ejecutable `GUI.exe` desde mi repositorio en GitHub. Al descargar el archivo, es necesario descomprimir el contenido si se descargó en formato .zip. Una vez hecho esto, se podrá ejecutar directamente el archivo `GUI.exe`, el cual iniciará la interfaz gráfica. A partir de ahí, podrá cargar el archivo .ORG y comenzar a utilizar las funcionalidades del programa.
 
-![Home](./DocumentationImages/cap1.PNG)
+![Ejecutable](./Document/Ejecutable.jpg)
 
-Dentro del mismo, usted contará con un lugar para editar texto o bien, si desea puede subir un archivo .ORG para que sea analizado posteriormente. En la sección de menú, usted contará con 3 opciones, las cuales son las clásicas, de guardar, guardar como y abrir.
-Luego de poner en el input lo que desea usted que se analice, se verá más o menos así:
+Dentro de la aplicación, el usuario contará con un área para editar texto o, si lo prefiere, podrá cargar un archivo con extensión .ORG para ser analizado. En el menú, ubicado en la parte inferior del programa, se dispondrán de seis opciones principales:
 
-![Editor de texto lleno](./DocumentationImages/cap2.PNG)
+1. **Abrir**: Permite cargar archivos con extensión .ORG desde su ubicación en el equipo.
+2. **Guardar**: Permite guardar el texto que se encuentra en el editor. Si el archivo no ha sido guardado anteriormente, se ofrecerá la opción de ingresar un nombre y seleccionar la ubicación donde se desea guardar.
+3. **Guardar como**: Permite guardar el archivo con un nombre diferente, solicitando al usuario el nuevo nombre y ubicación.
+4. **Analizar**: Realiza el análisis léxico del contenido que esté en el editor y genera la salida correspondiente.
+5. **Salir**: Cierra la aplicación.
+6. **Acerca de**: Muestra información del estudiante.
 
-Cuando haya puesto todo lo que desea analizar, apache el botón que está abajo del editor de texto y espere a los resultados. Cuando ya se haya calculado todo, se mostrará en patalla los datos obtenidos por el analizador.
+Después de ingresar o cargar la información a ser analizada, el programa mostrará los resultados correspondientes al análisis realizado.
 
-![Resultados del análisis](./DocumentationImages/cap3.PNG)
+![Editor de texto lleno](./Document/1.jpg)
 
-Si todo estaba correcto, también se generará un html indicando todos los lexemas y tokens encontrados de lo que usted introdujo.
+Una vez que haya ingresado todo lo que desea analizar, haga clic en el botón "Analizar" que se encuentra debajo del editor de texto y espere a que se generen los resultados. Cuando el análisis haya finalizado, los datos obtenidos se mostrarán en pantalla.
 
-![Tabla de Lexemas](./DocumentationImages/cap4.PNG)
+![Resultados del análisis](./Document/2.jpg)
 
-De igual forma, si al momento de usar el editor de texto presenta algún problema léxico, el programa no le devolverá el resultado, sino que solamente generará un html con una lista de error encontrados en el área de texto.
+Si el análisis se ha completado correctamente, además de mostrar los resultados en pantalla, el programa generará dos archivos HTML. Estos archivos contendrán un desglose detallado de todos los errores y tokens identificados en el contenido que haya ingresado o cargado. El HTML se guardará automáticamente en la ubicación predeterminada o en la carpeta que elija, permitiendo una consulta más cómoda y visual de los resultados. Este archivo le permitirá revisar de manera clara y organizada los componentes léxicos del texto, lo que facilita el análisis posterior o su integración en otros procesos.
 
-![Error en el editor](./DocumentationImages/cap5.PNG)
+![Tabla de Lexemas](./Document/tokens.jpg)
+![Tabla de Errores](./Document/errores.jpg)
 
-Y más o menos así se vería la tabla en donde se indican los errores encontrados:
-
-![Error en el editor](./DocumentationImages/cap6.PNG)
-
-Por último, cabe destacar el hecho que usted puede cerrar el programa y guardar todo lo que está en el input del editor de texto, no el resultado del análisis.
+Por último, es importante destacar que al cerrar el programa, usted tendrá la opción de guardar todo el contenido que ha ingresado en el editor de texto. Sin embargo, es fundamental tener en cuenta que esta acción no incluirá el resultado del análisis realizado. Por lo tanto, si desea conservar los resultados del análisis, asegúrese de guardarlos de manera independiente, ya sea en el formato que el programa ofrezca o copiándolos manualmente. De esta manera, podrá mantener un registro completo de su trabajo y los resultados obtenidos, asegurándose de no perder información valiosa. Recuerde que la gestión adecuada de sus archivos le permitirá acceder fácilmente a ellos en futuras sesiones.
