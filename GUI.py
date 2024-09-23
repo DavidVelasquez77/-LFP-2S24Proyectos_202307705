@@ -244,11 +244,11 @@ class OrgEditor:
             label = ctk.CTkLabel(frame_info, text=dato, font=("Arial", 12), text_color="white", anchor="w")
             label.pack(pady=2, anchor="w")
 
-        frame_imagen = ctk.CTkFrame(frame_principal, fg_color="black")
+        frame_imagen = ctk.CTkFrame(frame_principal, fg_color="black")  
         frame_imagen.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
 
         try:
-            img = Image.open("aux.png")
+            img = Image.open("auxiliar.png")
             ctk_img = ctk.CTkImage(light_image=img, dark_image=img, size=(200, 250))
             imagen_label = ctk.CTkLabel(frame_imagen, image=ctk_img, text="")
             imagen_label.pack(expand=True)
