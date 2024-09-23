@@ -1,51 +1,94 @@
-program main
-    use analizadorModule
-    use informacionModule 
+module app
     implicit none
+    private
+    public :: EstructuraDatos, ConfiguracionSistema, iniciar_sistema
 
-    call process_input()
+    type :: EstructuraDatos
+        integer, allocatable :: valores(:)
+        logical :: estado_validacion
+        character(len=100) :: mensaje_sistema
+    contains
+        procedure :: cargar => cargar_valores
+        procedure :: validar => validar_datos
+    end type
+
+    type :: ConfiguracionSistema
+        logical :: modo_debug
+        integer :: nivel_proceso
+        character(len=50) :: formato_salida
+    contains
+        procedure :: configurar => establecer_config
+    end type
 
 contains
-
-    subroutine process_input()
-        character(len=:), allocatable :: entrada
-        type(Analizador) :: mi_analizador
-        type(Informacion) :: mi_informacion
-
-        entrada = read_stdin()
-
-        call initialize_and_analyze(entrada, mi_analizador)
-        call process_information(mi_analizador, mi_informacion)
-    end subroutine process_input
-
-    function read_stdin() result(entrada)
-        character(len=:), allocatable :: entrada
-        character(len=10000) :: buffer
-        integer :: io_status
-
-        entrada = ''
+    subroutine cargar_valores(this)
+        class(EstructuraDatos), intent(inout) :: this
+        integer :: unidad_temporal, codigo_estado
+        character(len=1000) :: linea_entrada
+        
+        open(newunit=unidad_temporal, file='temp.dat', status='scratch')
         do
-            read(*, '(A)', iostat=io_status) buffer
-            if (io_status /= 0) exit
-            entrada = entrada // trim(buffer) // new_line('a')
+            read(*, '(A)', iostat=codigo_estado) linea_entrada
+            if (codigo_estado /= 0) exit
+            write(unidad_temporal, '(A)') trim(linea_entrada)
         end do
-    end function read_stdin
+        rewind(unidad_temporal)
+        close(unidad_temporal)
+    end subroutine
 
-    subroutine initialize_and_analyze(entrada, mi_analizador)
-        character(len=:), intent(in) :: entrada
-        type(Analizador), intent(inout) :: mi_analizador
+    function validar_datos(this) result(estado)
+        class(EstructuraDatos), intent(in) :: this
+        logical :: estado
+        estado = .true.
+        ! Lógica de validación personalizada
+    end function
 
-        call mi_analizador%inicializarEstado()
-        call mi_analizador%analizar(entrada)
-    end subroutine initialize_and_analyze
+    subroutine establecer_config(this, modo, nivel)
+        class(ConfiguracionSistema), intent(inout) :: this
+        logical, intent(in) :: modo
+        integer, intent(in) :: nivel
+        
+        this%modo_debug = modo
+        this%nivel_proceso = nivel
+        this%formato_salida = 'estandar'
+    end subroutine
 
-    subroutine process_information(mi_analizador, mi_informacion)
-        type(Analizador), intent(in) :: mi_analizador
-        type(Informacion), intent(inout) :: mi_informacion
+end module procesamiento_datos
 
-        call mi_informacion%crearInformacion(mi_analizador%tokens)
-        mi_informacion%hay_errores = mi_analizador%tieneErrores()
-        call mi_informacion%iterarTokens()
-    end subroutine process_information
+program sistema_principal
+    use procesamiento_datos
+    implicit none
+    
+    type(EstructuraDatos) :: datos_sistema
+    type(ConfiguracionSistema) :: config
+    logical :: estado_operacion
 
-end program main
+    call iniciar_sistema(datos_sistema, config)
+    
+contains
+    subroutine iniciar_sistema(datos, config)
+        type(EstructuraDatos), intent(inout) :: datos
+        type(ConfiguracionSistema), intent(inout) :: config
+        
+        call config%configurar(.false., 1)
+        call datos%cargar()
+        estado_operacion = datos%validar()
+        
+        if (estado_operacion) then
+            call ejecutar_proceso_principal(datos)
+        else
+            call gestionar_error()
+        end if
+    end subroutine
+
+    subroutine ejecutar_proceso_principal(datos)
+        type(EstructuraDatos), intent(in) :: datos
+        ! Implementación del proceso principal
+        write(*,*) "Proceso completado exitosamente"
+    end subroutine
+
+    subroutine gestionar_error()
+        write(*,*) "Error en el procesamiento"
+    end subroutine
+
+end program app

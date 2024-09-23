@@ -1,259 +1,309 @@
-module analizadorModule
-    use tokenModule
-    use errorModule
+module moduloEvaluador
+    use moduloTokens
+    use moduloErrores
     implicit none
     private
-    public :: Analizador
+    public :: Evaluador
 
-    integer, parameter :: MAX_TOKENS = 500
-    integer, parameter :: MAX_ERRORES = 700
+    integer, parameter :: MAX_ITEMS = 400
+    integer, parameter :: MAX_FALLOS = 600
 
-    type :: Analizador
+    type :: Evaluador
         private
-        logical :: hay_errores = .false.
-        integer :: estado = 0
-        type(Token) :: tokens(MAX_TOKENS)
-        type(Error) :: errores(MAX_ERRORES)
-        integer :: linea = 1
-        integer :: columna = 1
-        integer :: iTokens = 1
-        integer :: iErrores = 1
-        integer :: i = 1
-        character(:), allocatable :: buffer
+        logical :: erroresPresentes = .false.
+        integer :: estadoActual = 0
+        type(Token) :: itemTokens(MAX_ITEMS)
+        type(Error) :: listaErrores(MAX_FALLOS)
+        integer :: lineaActual = 1
+        integer :: posicionColumna = 1
+        integer :: totalTokens = 1
+        integer :: totalErrores = 1
+        integer :: indice = 1
+        character(:), allocatable :: bufferTemporal
     contains
-        procedure :: analizar
-        procedure :: agregarToken
-        procedure :: agregarError
-        procedure :: estado0
-        procedure :: estado1
-        procedure :: estado2
-        procedure :: estado3
-        procedure :: generarReporteTokens
-        procedure :: generarReporteErrores
-        procedure :: tieneErrores
-    end type Analizador
+        procedure :: procesarEntrada
+        procedure :: insertarToken
+        procedure :: insertarError
+        procedure :: evaluarEstadoA
+        procedure :: evaluarEstadoB
+        procedure :: evaluarEstadoC
+        procedure :: generarArchivoTokens
+        procedure :: generarArchivoErrores
+        procedure :: verificarErrores
+    end type Evaluador
+
+    implicit none
+    private
+    public :: StreamParser
+
+    integer, parameter :: BUFFER_SIZE = 500
+    integer, parameter :: MAX_SEGMENTS = 1000
+
+    type :: DataSegment
+        character(len=50) :: category
+        character(len=100) :: value
+        integer :: row
+        integer :: position
+    contains
+        procedure :: initializeSegment
+    end type DataSegment
+
+    type :: IssueRecord
+        character(len=1) :: problematicChar
+        character(len=100) :: description
+        integer :: row
+        integer :: position
+    contains
+        procedure :: initializeIssue
+    end type IssueRecord
+
+    type :: StreamParser
+        private
+        type(DataSegment), allocatable :: segments(:)
+        type(IssueRecord), allocatable :: issues(:)
+        integer :: currentMode
+        integer :: segmentCount
+        integer :: issueCount
+        integer :: currentPosition
+        integer :: rowNumber
+        integer :: colPosition
+        character(len=BUFFER_SIZE) :: tempStorage
+        logical :: hasIssues
+    contains
+        procedure :: initializeParser
+        procedure :: parseDataStream
+        procedure :: handleCharacter
+        procedure :: processMode1
+        procedure :: processMode2
+        procedure :: processMode3
+        procedure :: generateReport
+    end type StreamParser
 
 contains
-    subroutine analizar(this, entrada)
-        class(Analizador), intent(inout) :: this
-        character(len=*), intent(in) :: entrada
-        integer :: longitud
+    subroutine initializeParser(self)
+        class(StreamParser), intent(inout) :: self
+        allocate(self%segments(MAX_SEGMENTS))
+        allocate(self%issues(MAX_SEGMENTS))
+        self%currentMode = 0
+        self%segmentCount = 1
+        self%issueCount = 1
+        self%currentPosition = 1
+        self%rowNumber = 1
+        self%colPosition = 1
+        self%hasIssues = .false.
+        self%tempStorage = ''
+    end subroutine
 
-        this%i = 1
-        this%iTokens = 1
-        this%iErrores = 1
-        longitud = len_trim(entrada)
+    subroutine parseDataStream(self, inputStream)
+        class(StreamParser), intent(inout) :: self
+        character(len=*), intent(in) :: inputStream
+        integer :: streamLength, i
 
-        do while(this%i <= longitud)
-            select case(this%estado)
-                case(0)
-                    call this%estado0(entrada(this%i:this%i))
-                case(1)
-                    call this%estado1(entrada(this%i:this%i))
-                case(2)
-                    call this%estado2(entrada(this%i:this%i))
-                case(3)
-                    call this%estado3(entrada(this%i:this%i))
-            end select
-            this%i = this%i + 1
+        streamLength = len_trim(inputStream)
+        do i = 1, streamLength
+            call self%handleCharacter(inputStream(i:i))
         end do
+        call self%generateReport('analysis_output.html')
+    end subroutine
 
-        call this%generarReporteTokens('tokens.html')
-        call this%generarReporteErrores('errores.html')
-    end subroutine analizar
+    subroutine handleCharacter(self, char)
+        class(StreamParser), intent(inout) :: self
+        character(len=1), intent(in) :: char
 
-    subroutine agregarToken(this, nombre, lexema, linea, columna)
-        class(Analizador), intent(inout) :: this
-        character(len=*), intent(in) :: nombre, lexema
-        integer, intent(in) :: linea, columna
-        
-        if (this%iTokens <= MAX_TOKENS) then
-            call this%tokens(this%iTokens)%crearToken(nombre, lexema, linea, columna)
-            this%iTokens = this%iTokens + 1
-        end if
-    end subroutine agregarToken
-
-    subroutine agregarError(this, caracter, descripcion, linea, columna)
-        class(Analizador), intent(inout) :: this
-        character(len=*), intent(in) :: caracter, descripcion
-        integer, intent(in) :: linea, columna
-        
-        if (this%iErrores <= MAX_ERRORES) then
-            call this%errores(this%iErrores)%crearError(caracter, descripcion, linea, columna)
-            this%iErrores = this%iErrores + 1
-            this%hay_errores = .true.
-        end if
-    end subroutine agregarError
-
-    function tieneErrores(this) result(has_errors)
-        class(Analizador), intent(in) :: this
-        logical :: has_errors
-        has_errors = this%hay_errores
-    end function tieneErrores
-
-    subroutine estado0(this, caracter)
-        class(Analizador), intent(inout) :: this
-        character(len=1), intent(in) :: caracter
-        
-        select case(caracter)
-            case('A':'Z', 'a':'z')
-                this%buffer = caracter
-                this%estado = 1
-            case('"')
-                this%buffer = caracter
-                this%estado = 2
-            case('0':'9')
-                this%buffer = caracter
-                this%estado = 3
-            case(':', '{', '}', '%', ';')
-                call this%agregarToken(get_token_name(caracter), caracter, this%linea, this%columna)
-            case(new_line('A'))
-                this%linea = this%linea + 1
-                this%columna = 0
-            case(' ', achar(9))
-                ! Ignorar espacios y tabulaciones
-            case default
-                call this%agregarError(caracter, 'Caracter no valido', this%linea, this%columna)
+        select case (self%currentMode)
+            case (0)
+                call self%processMode1(char)
+            case (1)
+                call self%processMode2(char)
+            case (2)
+                call self%processMode3(char)
         end select
-        this%columna = this%columna + 1
-    end subroutine estado0
+    end subroutine
 
-    subroutine estado1(this, caracter)
-        class(Analizador), intent(inout) :: this
-        character(len=1), intent(in) :: caracter
+    subroutine processMode1(self, char)
+        class(StreamParser), intent(inout) :: self
+        character(len=1), intent(in) :: char
         
-        if (is_alpha(caracter)) then
-            this%buffer = this%buffer // caracter
-        else
-            if (is_reserved_word(this%buffer)) then
-                call this%agregarToken("Palabra_reservada", this%buffer, this%linea, this%columna)
-            else
-                call this%agregarError(this%buffer, 'Palabra reservada mal escrita o identificador no válido', this%linea, this%columna)
-            end if
-            this%buffer = ''
-            this%estado = 0
-            this%i = this%i - 1
+        if (isAlpha(char)) then
+            self%tempStorage = char
+            self%currentMode = 1
+        else if (isNumeric(char)) then
+            self%tempStorage = char
+            self%currentMode = 2
+        else if (isSpecial(char)) then
+            call addSegment(self, getCharacterType(char), char, self%rowNumber, self%colPosition)
+        else if (char == achar(10)) then
+            self%rowNumber = self%rowNumber + 1
+            self%colPosition = 0
+        else if (char /= ' ' .and. char /= achar(9)) then
+            call addIssue(self, char, 'Invalid character detected', self%rowNumber, self%colPosition)
         end if
-        this%columna = this%columna + 1
-    end subroutine estado1
+        self%colPosition = self%colPosition + 1
+    end subroutine
 
-    subroutine estado2(this, caracter)
-        class(Analizador), intent(inout) :: this
-        character(len=1), intent(in) :: caracter
-        
-        this%buffer = this%buffer // caracter
-        if (caracter == '"') then
-            call this%agregarToken('cadena', this%buffer, this%linea, this%columna)
-            this%buffer = ''
-            this%estado = 0
-        end if
-        this%columna = this%columna + 1
-    end subroutine estado2
-
-    subroutine estado3(this, caracter)
-        class(Analizador), intent(inout) :: this
-        character(len=1), intent(in) :: caracter
-        
-        if (is_digit(caracter)) then
-            this%buffer = this%buffer // caracter
-        else
-            call this%agregarToken('entero', this%buffer, this%linea, this%columna)
-            this%buffer = ''
-            this%estado = 0
-            this%i = this%i - 1
-        end if
-        this%columna = this%columna + 1
-    end subroutine estado3
-
-    subroutine generarReporteTokens(this, archivo)
-        class(Analizador), intent(in) :: this
-        character(len=*), intent(in) :: archivo
-        integer :: i, unit = 12
-        
-        open(unit=unit, file=archivo, status='replace', action='write')
-        write(unit, '(A)') "<html><head><script src='https://cdn.tailwindcss.com'></script><style>table {border-collapse: collapse;} th, td {border: 1px solid black; padding: 5px;}</style></head><body>"
-        write(unit, '(A)') "<table><tr><th>Nombre</th><th>Lexema</th><th>Linea</th><th>Columna</th></tr>"
-        
-        do i = 1, this%iTokens-1
-            write(unit, '(A, A, A, A, A, I0, A, I0, A)') &
-                "<tr class='bg-slate-500' text-center><td>", trim(this%tokens(i)%nombre), "</td><td class='bg-slate-500' text-center>", &
-                trim(this%tokens(i)%lexema), "</td><td class='bg-slate-500 text-center'>", &
-                this%tokens(i)%linea, "</td><td class='bg-slate-500 text-center'>", &
-                this%tokens(i)%columna, "</td></tr>"
-        end do
-        
-        write(unit, '(A)') "</table></body></html>"
-        close(unit)
-    end subroutine generarReporteTokens
-
-    subroutine generarReporteErrores(this, archivo)
-        class(Analizador), intent(in) :: this
-        character(len=*), intent(in) :: archivo
-        integer :: i, unit = 11
-        
-        open(unit=unit, file=archivo, status='replace', action='write')
-        write(unit, '(A)') "<html><head><style>table {border-collapse: collapse;} th, td {border: 1px solid black; padding: 5px;}</style></head><body>"
-        write(unit, '(A)') "<table><tr><th>Caracter</th><th>Descripcion</th><th>Linea</th><th>Columna</th></tr>"
-        
-        do i = 1, this%iErrores-1
-            write(unit, '(A, A, A, A, A, I0, A, I0, A)') &
-                "<tr><td>", trim(this%errores(i)%caracter), "</td><td>", &
-                trim(this%errores(i)%descripcion), "</td><td>", &
-                this%errores(i)%linea, "</td><td>", &
-                this%errores(i)%columna, "</td></tr>"
-        end do
-        
-        write(unit, '(A)') "</table></body></html>"
-        close(unit)
-    end subroutine generarReporteErrores
-
-    ! Funciones auxiliares
-    function is_alpha(char) result(res)
+    ! Helper functions
+    function isAlpha(char) result(res)
         character(len=1), intent(in) :: char
         logical :: res
         res = (char >= 'A' .and. char <= 'Z') .or. (char >= 'a' .and. char <= 'z')
-    end function is_alpha
+    end function
 
-    function is_digit(char) result(res)
+    function isNumeric(char) result(res)
         character(len=1), intent(in) :: char
         logical :: res
-        res = char >= '0' .and. char <= '9'
-    end function is_digit
+        res = (char >= '0' .and. char <= '9')
+    end function
 
-    function is_reserved_word(word) result(res)
-        character(len=*), intent(in) :: word
-        logical :: res
-        character(len=9), dimension(7), parameter :: reserved_words = &
-            [character(len=9) :: "grafica", "nombre", "continente", "pais", "poblacion", "saturacion", "bandera"]
-        integer :: i
-        
-        res = .false.
-        do i = 1, size(reserved_words)
-            if (trim(word) == trim(reserved_words(i))) then
-                res = .true.
-                exit
-            end if
-        end do
-    end function is_reserved_word
-
-    function get_token_name(char) result(name)
+    function isSpecial(char) result(res)
         character(len=1), intent(in) :: char
-        character(len=15) :: name
-        
-        select case(char)
-            case(':')
-                name = 'dos_puntos'
-            case('{')
-                name = 'llave_abre'
-            case('}')
-                name = 'llave_cierra'
-            case('%')
-                name = 'porcentaje'
-            case(';')
-                name = 'punto_y_coma'
+        logical :: res
+        res = any(char == ['+', '-', '*', '/', '='])
+    end function
+
+    function getCharacterType(char) result(type)
+        character(len=1), intent(in) :: char
+        character(len=20) :: type
+        select case (char)
+            case ('+')
+                type = 'suma'
+            case ('-')
+                type = 'resta'
+            case ('*')
+                type = 'multiplicacion'
+            case ('/')
+                type = 'division'
+            case ('=')
+                type = 'igual'
             case default
-                name = 'desconocido'
+                type = 'error'
         end select
-    end function get_token_name
+    end function
 
-end module analizadorModule
+
+    type :: OutputGenerator
+        integer :: fileUnit
+        character(len=100) :: outputPath
+    contains
+        procedure :: initializeOutput
+        procedure :: writeHeader
+        procedure :: writeContent
+        procedure :: closeOutput
+    end type OutputGenerator
+
+    type :: ContentAnalyzer
+        private
+        character(len=200) :: accumulator
+        integer :: processingPhase
+        integer :: sequenceNumber
+        logical :: continueProcessing
+        
+        contains
+        procedure :: analyzeSequence
+        procedure :: validateContent
+        procedure :: generateOutput
+        procedure :: handleSpecialCases
+    end type ContentAnalyzer
+
+    interface
+        module subroutine processChunk(self, inputChar)
+            class(ContentAnalyzer), intent(inout) :: self
+            character(len=1), intent(in) :: inputChar
+        end subroutine
+    end interface
+
+contains
+    subroutine analyzeSequence(self, inputChar)
+        class(ContentAnalyzer), intent(inout) :: self
+        character(len=1), intent(in) :: inputChar
+        
+        if (isValidInput(inputChar)) then
+            select case (self%processingPhase)
+                case (1)
+                    call handleAlphaSequence(self, inputChar)
+                case (2)
+                    call handleNumericSequence(self, inputChar)
+                case (3)
+                    call handleSpecialSequence(self, inputChar)
+            end select
+        else
+            call logInvalidInput(self, inputChar)
+        end if
+    end subroutine
+
+    function isValidInput(char) result(valid)
+        character(len=1), intent(in) :: char
+        logical :: valid
+        valid = isAlphanumeric(char) .or. isOperator(char) .or. isWhitespace(char)
+    end function
+
+    function isAlphanumeric(char) result(valid)
+        character(len=1), intent(in) :: char
+        logical :: valid
+        valid = isLetter(char) .or. isNumber(char)
+    end function
+
+    function isLetter(char) result(valid)
+        character(len=1), intent(in) :: char
+        logical :: valid
+        valid = (char >= 'A' .and. char <= 'Z') .or. (char >= 'a' .and. char <= 'z')
+    end function
+
+    function isNumber(char) result(valid)
+        character(len=1), intent(in) :: char
+        logical :: valid
+        valid = (char >= '0' .and. char <= '9')
+    end function
+
+    function isOperator(char) result(valid)
+        character(len=1), intent(in) :: char
+        logical :: valid
+        valid = any(char == ['+', '-', '*', '/', '=', '<', '>'])
+    end function
+
+    subroutine handleAlphaSequence(self, char)
+        class(ContentAnalyzer), intent(inout) :: self
+        character(len=1), intent(in) :: char
+        
+        if (isLetter(char)) then
+            self%accumulator = trim(self%accumulator) // char
+        else
+            call validateKeyword(self)
+            self%processingPhase = 1
+        end if
+    end subroutine
+
+    subroutine validateKeyword(self)
+        class(ContentAnalyzer), intent(inout) :: self
+
+        if (any(trim(self%accumulator) == validKeywords)) then
+            call recordValidSequence(self, 'KEYWORD', self%accumulator)
+        else
+            call recordInvalidSequence(self, 'Invalid keyword found')
+        end if
+        self%accumulator = ''
+    end subroutine
+
+    subroutine generateOutput(self, path)
+        class(ContentAnalyzer), intent(in) :: self
+        character(len=*), intent(in) :: path
+        type(OutputGenerator) :: reporter
+
+        call reporter%initializeOutput(path)
+        call reporter%writeHeader()
+        call reporter%writeContent()
+        call reporter%closeOutput()
+    end subroutine
+
+    subroutine recordValidSequence(self, category, content)
+        class(ContentAnalyzer), intent(inout) :: self
+        character(len=*), intent(in) :: category, content
+        ! Implementation for recording valid sequences
+    end subroutine
+
+    subroutine recordInvalidSequence(self, message)
+        class(ContentAnalyzer), intent(inout) :: self
+        character(len=*), intent(in) :: message
+        ! Implementation for recording invalid sequences
+    end subroutine
+
+end module moduloEvaluador

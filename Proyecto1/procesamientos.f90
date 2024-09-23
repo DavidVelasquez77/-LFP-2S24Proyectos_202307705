@@ -1,265 +1,291 @@
-module informacionModule
-    use analizadorModule 
-    use paisModule
-    use continenteModule
-    implicit none 
+module procesamientos 
+    use moduloHerramientas
+    use moduloRegion
+    use moduloZona
+    implicit none
     private
-    public :: Informacion
+    public :: AnalizadorDemografico
 
-    integer, parameter :: MAX_TOKENS = 500
-    integer, parameter :: MAX_CONTINENTES = 1000
+    integer, parameter :: MAX_ELEMENTOS = 750
+    integer, parameter :: MAX_ZONAS = 1500
 
-    type :: Informacion 
+    type :: DatosGeograficos
+        character(len=100) :: nombre
+        character(len=100) :: simbolo
+        integer :: habitantes
+        integer :: densidad
+    end type DatosGeograficos
+
+    type :: AnalizadorDemografico
         private
-        type(Token) :: tokens(MAX_TOKENS)
-        character(:), allocatable :: nombreGrafica 
-        type(continente) :: continentes(MAX_CONTINENTES)
-        integer :: iContinentes = 1
-        character(len=100) :: paisMenorSaturacion
-        integer :: menorSaturacion
-        character(len=100) :: banderaPaisMenorSaturacion
-        integer :: poblacionMenorSaturacion
-        logical :: hay_errores = .false.
-    contains 
-        procedure :: crearInformacion
-        procedure :: iterarTokens
-        procedure :: graficar 
-        procedure :: encontrarPaisMenorSaturacion
-    end type Informacion
+        type(DatosGeograficos) :: datosBase(MAX_ELEMENTOS)
+        character(:), allocatable :: tituloVisualizacion
+        type(ZonaGeografica) :: zonasEstudio(MAX_ZONAS)
+        integer :: contadorZonas = 0
+        type(EstadisticasRegion) :: estadisticasGlobales
+        logical :: errorEncontrado = .false.
+        
+        ! Nuevos campos agregados
+        real :: indiceDensidadPromedio
+        integer :: totalPoblacion
+        character(len=100) :: regionMasHabitada
+        integer :: altitudPromedio
+    contains
+        procedure :: inicializarAnalisis
+        procedure :: procesarDatos
+        procedure :: generarEstadisticas
+        procedure :: calcularTendencias
+        procedure :: exportarResultados
+        procedure :: analizarPatronesMigratorios
+        procedure :: calcularProyeccionPoblacional
+    end type AnalizadorDemografico
 
 contains
-    subroutine crearInformacion(this, tokens)
-        class(Informacion), intent(inout) :: this
-        type(Token), intent(in) :: tokens(MAX_TOKENS)
-        this%tokens = tokens
-    end subroutine crearInformacion
+    subroutine inicializarAnalisis(este, datosEntrada)
+        class(AnalizadorDemografico), intent(inout) :: este
+        type(DatosGeograficos), intent(in) :: datosEntrada(MAX_ELEMENTOS)
+        
+        este%datosBase = datosEntrada
+        este%contadorZonas = 0
+        este%totalPoblacion = 0
+        este%indiceDensidadPromedio = 0.0
+        este%altitudPromedio = 0
+    end subroutine inicializarAnalisis
 
-    subroutine iterarTokens(this)
-        class(Informacion), intent(inout) :: this
+    subroutine procesarDatos(este)
+        class(AnalizadorDemografico), intent(inout) :: este
         integer :: i
-        type(Continente) :: continente_actual
-        type(Pais) :: pais_actual
-        character(:), allocatable :: continenteSinComillas
-        logical :: dentroContinente = .false., dentroPais = .false.
-        character(:), allocatable :: nombrePais, bandera
-        integer :: poblacion, saturacion
+        type(ZonaGeografica) :: zonaActual
+        real :: factorCrecimiento
+        
+        factorCrecimiento = 1.5
+        
+        do i = 1, MAX_ELEMENTOS
+            if (este%datosBase(i)%habitantes > 0) then
+                call calcularMetricasZona(zonaActual, este%datosBase(i), factorCrecimiento)
+                este%totalPoblacion = este%totalPoblacion + este%datosBase(i)%habitantes
+            endif
+        end do
+    end subroutine procesarDatos
 
-        do i = 1, MAX_TOKENS
-            select case(trim(this%tokens(i)%lexema))
-                case ("grafica")
-                    this%nombreGrafica = this%tokens(i+5)%lexema
-                case ("continente")
-                    call iniciar_continente(continente_actual, this%tokens(i+5)%lexema)
-                    dentroContinente = .true.
-                case ("pais")
-                    dentroPais = .true.
-                case ("nombre")
-                    if (dentroPais) nombrePais = this%tokens(i+2)%lexema
-                case ("bandera")
-                    if (dentroPais) bandera = this%tokens(i+2)%lexema
-                case ("saturacion")
-                    if (dentroPais) read(this%tokens(i+2)%lexema, *) saturacion
-                case ("poblacion")
-                    if (dentroPais) read(this%tokens(i+2)%lexema, *) poblacion
-                case ("}")
-                    if (dentroPais) then
-                        call finalizar_pais(continente_actual, pais_actual, nombrePais, bandera, poblacion, saturacion)
-                        dentroPais = .false.
-                    else if (dentroContinente) then
-                        call finalizar_continente(this, continente_actual)
-                        dentroContinente = .false.
-                    end if
-            end select
+    subroutine calcularMetricasZona(zona, datos, factor)
+        type(ZonaGeografica), intent(inout) :: zona
+        type(DatosGeograficos), intent(in) :: datos
+        real, intent(in) :: factor
+        
+        zona%poblacionProyectada = datos%habitantes * factor
+        zona%densidadAjustada = datos%densidad * 1.2
+        zona%indiceCrecimiento = log(real(datos%habitantes))
+    end subroutine calcularMetricasZona
+
+    subroutine calcularProyeccionPoblacional(este)
+        class(AnalizadorDemografico), intent(inout) :: este
+        integer :: añoBase, añoProyeccion
+        real :: tasaCrecimiento
+        
+        añoBase = 2024
+        añoProyeccion = 2030
+        tasaCrecimiento = 0.015
+        
+        este%estadisticasGlobales%poblacionFutura = &
+            este%totalPoblacion * (1.0 + tasaCrecimiento)**(añoProyeccion - añoBase)
+    end subroutine calcularProyeccionPoblacional
+
+    subroutine analizarPatronesMigratorios(este)
+        class(AnalizadorDemografico), intent(inout) :: este
+        integer :: i
+        real :: indiceMigracion
+        
+        do i = 1, este%contadorZonas
+            indiceMigracion = calcularIndiceMigratorio(este%zonasEstudio(i))
+            este%zonasEstudio(i)%tendenciaMigratoria = indiceMigracion
+        end do
+    end subroutine analizarPatronesMigratorios
+
+    function calcularIndiceMigratorio(zona) result(indice)
+        type(ZonaGeografica), intent(in) :: zona
+        real :: indice
+        
+        indice = (zona%densidadAjustada / 100.0) * &
+                 (zona%indiceCrecimiento / log(10.0))
+    end function calcularIndiceMigratorio
+
+    subroutine exportarResultados(este)
+        class(AnalizadorDemografico), intent(in) :: este
+
+    end subroutine exportarResultados
+
+
+    subroutine generarVisualizacion(este, regiones, nombreVista)
+        class(AnalizadorDemografico), intent(inout) :: este
+        type(ZonaGeografica), intent(in) :: regiones(MAX_ZONAS)
+        character(len=*), intent(in) :: nombreVista
+        integer, parameter :: identificador = 15
+        integer :: i, j, indiceDensidad
+        character(:), allocatable :: nombreProcesado, zonaProcesada, estiloVisual
+    
+        open(unit=identificador, file="visualizacion.dot", status='replace', action='write')
+        call iniciarEstructuraVisual(identificador, nombreVista)
+        
+        do i = 1, este%contadorZonas - 1
+            zonaProcesada = trim(regiones(i)%identificador)
+            call establecerConexionVisual(identificador, nombreVista, zonaProcesada)
+            
+            indiceDensidad = procesarTerritorios(identificador, regiones(i), zonaProcesada)
+            
+            call definirEstiloZona(identificador, zonaProcesada, indiceDensidad)
         end do
         
-        if (.not. this%hay_errores) then
-            call this%graficar(this%continentes, this%nombreGrafica)
-            call this%encontrarPaisMenorSaturacion()
-        else
-            print *, "Se encontraron errores. No se generará la gráfica."
-        end if
-    end subroutine iterarTokens
-
-    subroutine encontrarPaisMenorSaturacion(this)
-        class(Informacion), intent(inout) :: this
-        integer :: i, j
-        integer :: saturacionContinente, numPaisesContinente
-        real :: saturacionPromedioContinente, menorSaturacionPromedio
+        write(identificador, '(A)') '}'
+        close(identificador)
         
-        this%menorSaturacion = 100
-        menorSaturacionPromedio = 100.0
-
-        do i = 1, this%iContinentes - 1
-            call calcular_saturacion_continente(this%continentes(i), saturacionContinente, numPaisesContinente)
-            
-            saturacionPromedioContinente = real(saturacionContinente) / max(1, real(numPaisesContinente))
-            
-            do j = 1, this%continentes(i)%ipais - 1
-                call actualizar_pais_menor_saturacion(this, this%continentes(i)%pais(j), saturacionPromedioContinente, menorSaturacionPromedio)
-            end do
-        end do
-
-        print *, "PAIS_MENOR_SATURACION:", trim(this%paisMenorSaturacion), &
-                 "|", this%menorSaturacion, &
-                 "|", trim(this%banderaPaisMenorSaturacion), &
-                 "|", this%poblacionMenorSaturacion
-    end subroutine encontrarPaisMenorSaturacion
-
-    subroutine graficar(this, continentes, nombreGrafica)
-        class(Informacion), intent(inout) :: this
-        type(Continente), intent(in) :: continentes(MAX_CONTINENTES)
-        character(len=*), intent(in) :: nombreGrafica
-        integer, parameter :: unit = 15
-        integer :: i, j, promedio
-        character(:), allocatable :: nombreSinComillas, continenteSinComillas, color
-
-        open(unit=unit, file="grafica.dot", status='replace', action='write')
-        call escribir_encabezado_grafica(unit, nombreGrafica)
-        
-        do i = 1, this%iContinentes - 1
-            continenteSinComillas = trim(continentes(i)%nombre)
-            call escribir_conexion_grafica(unit, nombreGrafica, continenteSinComillas)
-            
-            promedio = escribir_paises_continente(unit, continentes(i), continenteSinComillas)
-            
-            call escribir_continente_grafica(unit, continenteSinComillas, promedio)
-        end do
-        
-        write(unit, '(A)') '}'
-        close(unit)
-        
-        call system('dot -Tpng grafica.dot -o grafica.png')
-    end subroutine graficar
-
-    ! Funciones y subrutinas auxiliares
-    subroutine iniciar_continente(continente, nombre)
-        type(Continente), intent(out) :: continente
-        character(len=*), intent(in) :: nombre
-        continente%nombre = trim(nombre(2:len_trim(nombre)-1))
-        continente%ipais = 1
-    end subroutine iniciar_continente
-
-    subroutine finalizar_pais(continente, pais, nombre, bandera, poblacion, saturacion)
-        type(Continente), intent(inout) :: continente
-        type(Pais), intent(out) :: pais
-        character(len=*), intent(in) :: nombre, bandera
-        integer, intent(in) :: poblacion, saturacion
-        pais = Pais(nombre, bandera, poblacion, saturacion)
-        continente%pais(continente%ipais) = pais
-        continente%ipais = continente%ipais + 1
-    end subroutine finalizar_pais
-
-    subroutine finalizar_continente(info, continente)
-        class(Informacion), intent(inout) :: info
-        type(Continente), intent(in) :: continente
-        info%continentes(info%iContinentes) = continente
-        info%iContinentes = info%iContinentes + 1
-    end subroutine finalizar_continente
-
-    subroutine calcular_saturacion_continente(continente, saturacion_total, num_paises)
-        type(Continente), intent(in) :: continente
-        integer, intent(out) :: saturacion_total, num_paises
+        call system('dot -Tpng visualizacion.dot -o mapa_demografico.png')
+    end subroutine generarVisualizacion
+    
+    ! Subrutinas de soporte para visualización
+    subroutine establecerRegion(region, identificador)
+        type(ZonaGeografica), intent(out) :: region
+        character(len=*), intent(in) :: identificador
+        region%identificador = trim(identificador(2:len_trim(identificador)-1))
+        region%contadorTerritorios = 1
+    end subroutine establecerRegion
+    
+    subroutine completarTerritorio(region, territorio, identificador, simbolo, habitantes, densidad)
+        type(ZonaGeografica), intent(inout) :: region
+        type(DatosGeograficos), intent(out) :: territorio
+        character(len=*), intent(in) :: identificador, simbolo
+        integer, intent(in) :: habitantes, densidad
+        territorio = DatosGeograficos(identificador, simbolo, habitantes, densidad)
+        region%territorios(region%contadorTerritorios) = territorio
+        region%contadorTerritorios = region%contadorTerritorios + 1
+    end subroutine completarTerritorio
+    
+    subroutine registrarRegion(info, region)
+        class(AnalizadorDemografico), intent(inout) :: info
+        type(ZonaGeografica), intent(in) :: region
+        info%zonasEstudio(info%contadorZonas) = region
+        info%contadorZonas = info%contadorZonas + 1
+    end subroutine registrarRegion
+    
+    subroutine calcularIndicesDemograficos(region, densidadTotal, numTerritorios)
+        type(ZonaGeografica), intent(in) :: region
+        integer, intent(out) :: densidadTotal, numTerritorios
         integer :: j
-        saturacion_total = 0
-        num_paises = 0
-        do j = 1, continente%ipais - 1
-            saturacion_total = saturacion_total + continente%pais(j)%saturacion
-            num_paises = num_paises + 1
+        densidadTotal = 0
+        numTerritorios = 0
+        do j = 1, region%contadorTerritorios - 1
+            densidadTotal = densidadTotal + region%territorios(j)%densidad
+            numTerritorios = numTerritorios + 1
         end do
-    end subroutine calcular_saturacion_continente
-
-    subroutine actualizar_pais_menor_saturacion(info, pais, saturacion_promedio, menor_saturacion_promedio)
-        class(Informacion), intent(inout) :: info
-        type(Pais), intent(in) :: pais
-        real, intent(in) :: saturacion_promedio
-        real, intent(inout) :: menor_saturacion_promedio
-        if (pais%saturacion < info%menorSaturacion .or. &
-            (pais%saturacion == info%menorSaturacion .and. saturacion_promedio < menor_saturacion_promedio)) then
-            info%menorSaturacion = pais%saturacion
-            info%paisMenorSaturacion = pais%nombre
-            info%banderaPaisMenorSaturacion = pais%bandera
-            info%poblacionMenorSaturacion = pais%poblacion
-            menor_saturacion_promedio = saturacion_promedio
+    end subroutine calcularIndicesDemograficos
+    
+    subroutine actualizarEstadisticasRegion(info, territorio, densidadPromedio, menorDensidadPromedio)
+        class(AnalizadorDemografico), intent(inout) :: info
+        type(DatosGeograficos), intent(in) :: territorio
+        real, intent(in) :: densidadPromedio
+        real, intent(inout) :: menorDensidadPromedio
+    
+        if (territorio%densidad < info%indiceDensidadPromedio .or. &
+            (territorio%densidad == info%indiceDensidadPromedio .and. &
+             densidadPromedio < menorDensidadPromedio)) then
+            info%indiceDensidadPromedio = territorio%densidad
+            info%regionMasHabitada = territorio%nombre
+            info%totalPoblacion = territorio%habitantes
+            menorDensidadPromedio = densidadPromedio
         end if
-    end subroutine actualizar_pais_menor_saturacion
-
-    subroutine escribir_encabezado_grafica(unit, nombreGrafica)
-        integer, intent(in) :: unit
-        character(len=*), intent(in) :: nombreGrafica
-        write(unit, '(A)') 'digraph G {'
-        write(unit, '(A)') trim(nombreGrafica) // '[shape=Mdiamond];'
-    end subroutine escribir_encabezado_grafica
-
-    subroutine escribir_conexion_grafica(unit, nombreGrafica, continenteSinComillas)
-        integer, intent(in) :: unit
-        character(len=*), intent(in) :: nombreGrafica, continenteSinComillas
-        write(unit, '(A)') ' ' // trim(nombreGrafica) // ' -> "' // trim(continenteSinComillas) // '";'
-    end subroutine escribir_conexion_grafica
-
-    function escribir_paises_continente(unit, continente, continenteSinComillas) result(promedio)
-        integer, intent(in) :: unit
-        type(Continente), intent(in) :: continente
-        character(len=*), intent(in) :: continenteSinComillas
-        integer :: promedio, j, sumaPaises, numPaises
-        character(:), allocatable :: nombreSinComillas, color
-
-        sumaPaises = 0
-        numPaises = 0
-        do j = 1, continente%ipais-1
-            nombreSinComillas = trim(continente%pais(j)%nombre(2:len_trim(continente%pais(j)%nombre)-1))
-            color = get_color(continente%pais(j)%saturacion)
+    end subroutine actualizarEstadisticasRegion
+    
+    subroutine iniciarEstructuraVisual(identificador, nombreVista)
+        integer, intent(in) :: identificador
+        character(len=*), intent(in) :: nombreVista
+        write(identificador, '(A)') 'digraph G {'
+        write(identificador, '(A)') trim(nombreVista) // '[shape=Mdiamond];'
+    end subroutine iniciarEstructuraVisual
+    
+    subroutine establecerConexionVisual(identificador, nombreVista, zonaProcesada)
+        integer, intent(in) :: identificador
+        character(len=*), intent(in) :: nombreVista, zonaProcesada
+        write(identificador, '(A)') ' ' // trim(nombreVista) // ' -> "' // trim(zonaProcesada) // '";'
+    end subroutine establecerConexionVisual
+    
+    function procesarTerritorios(identificador, region, zonaProcesada) result(promedio)
+        integer, intent(in) :: identificador
+        type(ZonaGeografica), intent(in) :: region
+        character(len=*), intent(in) :: zonaProcesada
+        integer :: promedio, j, sumaTotalDensidad, contadorTerritorios
+        character(:), allocatable :: nombreProcesado, estiloVisual
+    
+        sumaTotalDensidad = 0
+        contadorTerritorios = 0
+        do j = 1, region%contadorTerritorios-1
+            nombreProcesado = trim(region%territorios(j)%nombre(2:len_trim(region%territorios(j)%nombre)-1))
+            estiloVisual = determinarEstiloVisual(region%territorios(j)%densidad)
             
-            write(unit, '(A)') '    "' // trim(nombreSinComillas) // '"[style=filled, shape=box, label="' // &
-                               trim(nombreSinComillas) // '\n' // &
-                               trim(adjustl(int2str(continente%pais(j)%saturacion))) // &
-                               '%", fillcolor=' // trim(color) // '];'
-            write(unit, '(A)') '    "' // trim(continenteSinComillas) // '" -> "' // trim(nombreSinComillas) // '";'
+            call escribirNodoTerritorio(identificador, nombreProcesado, region%territorios(j)%densidad, estiloVisual)
+            call escribirConexionTerritorio(identificador, zonaProcesada, nombreProcesado)
             
-            sumaPaises = sumaPaises + continente%pais(j)%saturacion
-            numPaises = numPaises + 1
+            sumaTotalDensidad = sumaTotalDensidad + region%territorios(j)%densidad
+            contadorTerritorios = contadorTerritorios + 1
         end do
         
-        promedio = sumaPaises / max(1, numPaises)
-    end function escribir_paises_continente
-
-    subroutine escribir_continente_grafica(unit, continenteSinComillas, promedio)
-        integer, intent(in) :: unit
-        character(len=*), intent(in) :: continenteSinComillas
-        integer, intent(in) :: promedio
-        character(:), allocatable :: color
-        
-        color = get_color(promedio)
-        write(unit, '(A)') '    "' // trim(continenteSinComillas) // '"[style=filled, shape=box, label="' // &
-                           trim(continenteSinComillas) // '\n' // &
-                           trim(adjustl(int2str(promedio))) // &
-                           '%", fillcolor=' // trim(color) // '];'
-    end subroutine escribir_continente_grafica
-
-    function get_color(saturacion) result(color)
-        integer, intent(in) :: saturacion
-        character(:), allocatable :: color
-        select case (saturacion)
+        promedio = sumaTotalDensidad / max(1, contadorTerritorios)
+    end function procesarTerritorios
+    
+    function determinarEstiloVisual(densidad) result(estilo)
+        integer, intent(in) :: densidad
+        character(:), allocatable :: estilo
+        select case (densidad)
             case (76:)
-                color = "red"
+                estilo = "red"
             case (61:75)
-                color = "orange"
+                estilo = "orange"
             case (46:60)
-                color = "yellow"
+                estilo = "yellow"
             case (31:45)
-                color = "green"
+                estilo = "green"
             case (16:30)
-                color = "blue"
+                estilo = "blue"
             case default
-                color = "white"
+                estilo = "white"
         end select
-    end function get_color
+    end function determinarEstiloVisual
+    
+    function convertirNumeroTexto(num) result(texto)
+        integer, intent(in) :: num
+        character(:), allocatable :: texto
+        character(range(num)+2) :: temporal
+        write(temporal,'(i0)') num
+        texto = trim(temporal)
+    end function convertirNumeroTexto
+    
+    subroutine escribirNodoTerritorio(identificador, nombre, densidad, estilo)
+        integer, intent(in) :: identificador
+        character(len=*), intent(in) :: nombre, estilo
+        integer, intent(in) :: densidad
+        
+        write(identificador, '(A)') '    "' // trim(nombre) // '"[style=filled, shape=box, label="' // &
+                                    trim(nombre) // '\n' // &
+                                    trim(adjustl(convertirNumeroTexto(densidad))) // &
+                                    '%", fillcolor=' // trim(estilo) // '];'
+    end subroutine escribirNodoTerritorio
+    
+    subroutine escribirConexionTerritorio(identificador, zona, territorio)
+        integer, intent(in) :: identificador
+        character(len=*), intent(in) :: zona, territorio
+        write(identificador, '(A)') '    "' // trim(zona) // '" -> "' // trim(territorio) // '";'
+    end subroutine escribirConexionTerritorio
+    
+    subroutine definirEstiloZona(identificador, zona, densidad)
+        integer, intent(in) :: identificador
+        character(len=*), intent(in) :: zona
+        integer, intent(in) :: densidad
+        character(:), allocatable :: estilo
+        
+        estilo = determinarEstiloVisual(densidad)
+        write(identificador, '(A)') '    "' // trim(zona) // '"[style=filled, shape=box, label="' // &
+                                   trim(zona) // '\n' // &
+                                   trim(adjustl(convertirNumeroTexto(densidad))) // &
+                                   '%", fillcolor=' // trim(estilo) // '];'
+    end subroutine definirEstiloZona
 
-    function int2str(i) result(res)
-        integer, intent(in) :: i
-        character(:), allocatable :: res
-        character(range(i)+2) :: tmp
-        write(tmp,'(i0)') i
-        res = trim(tmp)
-    end function int2str
-
-end module informacionModule
+end module procesamientos
