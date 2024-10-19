@@ -1,0 +1,47 @@
+<!--Controles
+
+Contenedor contLogin; 
+
+Etiqueta user;
+Etiqueta password;
+
+Boton btnLogin;
+
+Controles -->
+
+<!--propiedades
+
+contlogin.setAncho(190); 
+contlogin.setAlto(150); 
+contlogin.setColorFondo(47,79,79);
+
+user.setAncho(53);
+
+user.setAlto(13); 
+user.setColorLetra(128,128,128); 
+user.setTexto("Usuario");
+
+password.setAncho(44);
+password.setAlto(13);
+password.setColorLetra(128,128,128); 
+password.setTexto("Nombre");
+
+btnLogin.setTexto("Ingresar");
+
+propiedades -->
+
+<!--Colocación
+
+contLogin.setPosicion(586,110);
+
+user.setPosicion(11,34);
+password.setPosicion(11,54);
+btnLogin.setPosicion(40,100);
+
+contLogin.add(user);
+contLogin.add(password);
+contLogin.add(btnLogin);
+
+this.add(contLogin);
+
+Colocación -->
