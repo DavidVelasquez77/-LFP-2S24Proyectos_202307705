@@ -1,180 +1,256 @@
-import tkinter as gui
-from tkinter import ttk, filedialog, messagebox
-import subprocess, os, webbrowser
+import tkinter as tk
+from tkinter import ttk
+from tkinter import filedialog
+from tkinter import messagebox
+import subprocess
+import os
+import webbrowser
 
-class AnalizadorFortran:
-    def __init__(self, ventana):
-        ventana.title("Proyecto 2 - Analizador de Fortran")
-        ventana.geometry("900x650")
+class main:
+    def __init__(self, root):
+        self.root = root
+        self.configurar_ventana()
 
-        # Colores personalizados
-        self.paleta = {
-            'fondo': '#1C1C1C',
-            'texto_boton': '#FFFFFF',
-            'fondo_boton': '#4CAF50',
-            'fondo_editor': '#0B3D91',
-            'texto_editor': '#D3D3D3',
+        # Define color scheme
+        self.colors = self.definir_colores()
+
+        # Apply a theme and configure styles
+        self.configurar_estilo()
+
+        # Main frame to organize elements
+        self.main_frame = ttk.Frame(self.root)
+        self.main_frame.pack(expand=True, fill='both')
+
+        # Create interface components
+        self.crear_banner_titulo()
+        self.crear_botones_archivo()
+        self.crear_boton_datos_estudiante()
+        self.crear_paned_window()
+        self.crear_barra_estado()
+
+    def configurar_ventana(self):
+        self.root.title("interfaz")
+        self.root.geometry("1200x800")
+
+    def definir_colores(self):
+        return {
+            'bg': '#001A00',
+            'fg': '#33FF33',
+            'accent': '#00CC00',
+            'button': '#FFFFFF',
+            'button_text': '#001A00',
+            'text_bg': '#000A00',
+            'text_fg': '#66FF66',
+            'highlight': '#00FF00'
         }
 
-        ventana.configure(bg=self.paleta['fondo'])
+    def configurar_estilo(self):
+        self.style = ttk.Style(self.root)
+        self.style.theme_use('clam')
 
-        # Contenedor principal
-        self.contenedor = ttk.Frame(ventana)
-        self.contenedor.pack(expand=True, fill='both')
+        # Configure general styles
+        self.configurar_colores_base()
+        self.configurar_colores_botones()
 
-        # Crear botones
-        self.configurar_botones()
+    def configurar_colores_base(self):
+        self.style.configure('TFrame', background=self.colors['bg'])
+        self.style.configure('TLabel', background=self.colors['bg'], foreground=self.colors['fg'])
 
-        # Crear área de edición de texto
-        self.configurar_editor_texto()
+    def configurar_colores_botones(self):
+        self.style.configure('TButton',
+                             background=self.colors['button'],
+                             foreground=self.colors['button_text'],
+                             borderwidth=0)
+        self.style.map('TButton', background=[('active', self.colors['accent'])])
+        self.style.configure('Accent.TButton',
+                             background=self.colors['accent'],
+                             foreground=self.colors['button'],
+                             borderwidth=0)
+        self.style.map('Accent.TButton', background=[('active', self.colors['highlight'])])
 
-        # Contador de líneas y caracteres
-        self.configurar_contador()
+    def crear_banner_titulo(self):
+        banner_frame = self.crear_frame(self.main_frame, estilo='Banner.TFrame', pady=(0, 10))
+        self.configurar_estilo_banner()
+        ttk.Label(banner_frame, text="PROYECTO2", style='Banner.TLabel').pack(pady=10)
 
-    def configurar_botones(self):
-        marco_botones = ttk.Frame(self.contenedor)
-        marco_botones.pack(fill='x')
+    def configurar_estilo_banner(self):
+        self.style.configure('Banner.TFrame', background=self.colors['accent'])
+        self.style.configure('Banner.TLabel', background=self.colors['accent'],
+                             foreground=self.colors['button'], font=('Helvetica', 16, 'bold'))
 
-        # Información de los botones
-        lista_botones = [
-            ("Nuevo Archivo", self.crear_archivo),
-            ("Cargar Archivo", self.cargar_archivo),
-            ("Guardar Archivo", self.almacenar_archivo),
-            ("Ejecutar Análisis", self.realizar_analisis),
-            ("Datos del Estudiante", self.mostrar_datos),
-            ("Buscar Texto", self.buscar)
+    def crear_frame(self, parent, estilo='TFrame', pady=5, padx=10):
+        frame = ttk.Frame(parent, style=estilo)
+        frame.pack(fill='x', padx=padx, pady=pady)
+        return frame
+
+    def crear_botones_archivo(self):
+        file_button_frame = self.crear_frame(self.main_frame)
+        botones = [
+            ("Nuevo", self.nuevo_archivo),
+            ("Abrir", self.abrir_archivo),
+            ("Guardar", self.guardar_archivo),
+            ("Guardar como", self.guardar_como),
+            ("Analizar Código", self.analizar),
+            ("Limpiar", self.limpiar_datos)
         ]
+        self.agregar_botones(file_button_frame, botones)
 
-        for texto, accion in lista_botones:
-            boton = ttk.Button(marco_botones, text=texto, command=accion, style='TButton')
-            boton.pack(side=gui.LEFT, padx=5, pady=5)
+    def agregar_botones(self, frame, botones):
+        for text, command in botones:
+            estilo = 'Accent.TButton' if text == "Analizar Código" else 'TButton'
+            self.crear_boton(frame, text, command, estilo)
 
-    def configurar_editor_texto(self):
-        marco_editor = ttk.Frame(self.contenedor)
-        marco_editor.pack(fill='both', expand=True)
+    def crear_boton(self, parent, text, command, estilo):
+        btn = ttk.Button(parent, text=text, command=command, style=estilo)
+        btn.pack(side=tk.LEFT, padx=5)
+        btn.bind('<Enter>', lambda e, b=btn: self.on_button_hover(e, b))
+        btn.bind('<Leave>', lambda e, b=btn: self.on_button_leave(e, b))
 
-        scroll_vertical = gui.Scrollbar(marco_editor)
-        scroll_vertical.pack(side=gui.RIGHT, fill=gui.Y)
+    def crear_boton_datos_estudiante(self):
+        ttk.Button(self.main_frame, text="Datos del Estudiante",
+                   command=self.mostrar_datos_estudiante, style='TButton').pack(pady=10)
 
-        # Editor de texto
-        self.campo_texto = gui.Text(marco_editor, wrap=gui.NONE, 
-                                    bg=self.paleta['fondo_editor'], 
-                                    fg=self.paleta['texto_editor'],
-                                    yscrollcommand=scroll_vertical.set)
-        self.campo_texto.pack(expand=True, fill='both')
-        scroll_vertical.config(command=self.campo_texto.yview)
-
-        # Resaltado de sintaxis Fortran
-        self.campo_texto.tag_configure('keyword', foreground='yellow')
-
-    def configurar_contador(self):
-        self.marco_contador = ttk.Frame(self.contenedor)
-        self.marco_contador.pack(fill='x')
-        self.contador_lineas = ttk.Label(self.marco_contador, text="Líneas: 0 | Caracteres: 0")
-        self.contador_lineas.pack(anchor='e', padx=10, pady=5)
-
-        # Actualizar contador cuando se modifique el contenido
-        self.campo_texto.bind('<KeyRelease>', self.actualizar_contador)
-
-    def actualizar_contador(self, event=None):
-        lineas = int(self.campo_texto.index('end-1c').split('.')[0])
-        caracteres = len(self.campo_texto.get(1.0, gui.END)) - 1
-        self.contador_lineas.config(text=f"Líneas: {lineas} | Caracteres: {caracteres}")
-
-    def crear_archivo(self):
-        # Limpiar el área de texto
-        self.campo_texto.delete(1.0, gui.END)
-
-    def cargar_archivo(self):
-        archivo = filedialog.askopenfilename(
-            filetypes=[("Archivos de Código", "*.f95 *.txt"), ("Todos los archivos", "*.*")]
-        )
-        if archivo:
-            with open(archivo, 'r') as f:
-                contenido = f.read()
-                self.campo_texto.delete(1.0, gui.END)
-                self.campo_texto.insert(gui.END, contenido)
-            self.actualizar_contador()
-
-    def realizar_analisis(self):
-        codigo = self.campo_texto.get(1.0, gui.END)
-        if codigo.strip():
-            resultado = self.ejecutar_comando_fortran(codigo)
-            messagebox.showinfo("Resultado del Análisis", resultado)
-        else:
-            messagebox.showerror("Error", "El editor está vacío")
-
-    def ejecutar_comando_fortran(self, codigo_fuente):
-        try:
-            directorio = os.path.dirname(os.path.abspath(__file__))
-            ruta_ejecucion = os.path.join(directorio, "analizador_fortran")
-
-            if os.name == 'nt':
-                ruta_ejecucion += ".exe"
-
-            if not os.path.exists(ruta_ejecucion):
-                return "Error: No se encontró el ejecutable de análisis."
-
-            proceso = subprocess.Popen(
-                [ruta_ejecucion], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-            )
-            salida, errores = proceso.communicate(input=codigo_fuente)
-
-            if proceso.returncode != 0:
-                return f"Errores durante la ejecución: {errores}"
-
-            return salida if salida else "Análisis completado sin errores."
-
-        except Exception as e:
-            return f"Error al intentar ejecutar el análisis: {str(e)}"
-
-
-    def mostrar_datos(self):
+    def mostrar_datos_estudiante(self):
         datos = [
             "Nombre: Josué David Velásquez Ixchop",
             "Carnet: 202307705",
             "Carrera: Ingeniería en Ciencias y Sistemas",
             "Curso: Lenguajes Formales y de Programación",
         ]
+        self.mostrar_en_ventana(datos, "Datos del Estudiante")
 
-        datos_window = gui.Toplevel()
-        datos_window.title("Datos del Estudiante")
+    def mostrar_en_ventana(self, datos, titulo):
+        datos_window = tk.Toplevel(self.root)
+        datos_window.title(titulo)
         datos_window.geometry("400x200")
-        datos_window.configure(bg=self.paleta['fondo'])
+        datos_window.configure(bg=self.colors['bg'])
 
         for dato in datos:
-            label = ttk.Label(datos_window, text=dato, background=self.paleta['fondo'], foreground=self.paleta['texto_editor'])
-            label.pack(anchor="w", padx=10, pady=5)
+            ttk.Label(datos_window, text=dato, background=self.colors['bg'], foreground=self.colors['fg']).pack(anchor="w", padx=10, pady=5)
 
-    def buscar(self):
-        buscar_window = gui.Toplevel()
-        buscar_window.title("Buscar Texto")
-        buscar_window.geometry("300x100")
-        buscar_window.configure(bg=self.paleta['fondo'])
+    def crear_paned_window(self):
+        paned_window = ttk.PanedWindow(self.main_frame, orient=tk.HORIZONTAL)
+        paned_window.pack(expand=True, fill='both', padx=10, pady=5)
 
-        label_buscar = ttk.Label(buscar_window, text="Texto a buscar:")
-        label_buscar.pack(padx=10, pady=5)
+        self.crear_area_texto(paned_window)
+        self.crear_notebook(paned_window)
 
-        entrada_buscar = ttk.Entry(buscar_window)
-        entrada_buscar.pack(padx=10, pady=5)
+    def crear_area_texto(self, paned_window):
+        left_frame = ttk.Frame(paned_window)
+        paned_window.add(left_frame, weight=1)
 
-        boton_buscar = ttk.Button(buscar_window, text="Buscar", command=lambda: self.identificador(entrada_buscar.get()))
-        boton_buscar.pack(padx=10, pady=5)
+        text_container = ttk.LabelFrame(left_frame, text="Editor de código")
+        text_container.pack(expand=True, fill='both')
 
-    def identificador(self, texto):
-        self.campo_texto.tag_remove('found', '1.0', gui.END)
-        if texto:
-            idx = '1.0'
-            while True:
-                idx = self.campo_texto.search(texto, idx, nocase=1, stopindex=gui.END)
-                if not idx:
-                    break
-                end_idx = f"{idx}+{len(texto)}c"
-                self.campo_texto.tag_add('found', idx, end_idx)
-                idx = end_idx
-            self.campo_texto.tag_config('found', background='yellow', foreground='black')
+        self.area_texto, scroll_y, scroll_x = self.configurar_area_texto(text_container)
+        scroll_y.config(command=self.area_texto.yview)
+        scroll_x.config(command=self.area_texto.xview)
 
+    def configurar_area_texto(self, container):
+        scroll_y = ttk.Scrollbar(container)
+        scroll_y.pack(side=tk.RIGHT, fill=tk.Y)
+        scroll_x = ttk.Scrollbar(container, orient=tk.HORIZONTAL)
+        scroll_x.pack(side=tk.BOTTOM, fill=tk.X)
+        
+        area_texto = tk.Text(container, wrap=tk.NONE, undo=True,
+                             yscrollcommand=scroll_y.set,
+                             xscrollcommand=scroll_x.set,
+                             bg=self.colors['text_bg'],
+                             fg=self.colors['text_fg'],
+                             insertbackground=self.colors['highlight'],
+                             selectbackground=self.colors['accent'],
+                             selectforeground=self.colors['button_text'])
+        area_texto.pack(expand=True, fill='both')
+        return area_texto, scroll_y, scroll_x
+
+    def crear_notebook(self, paned_window):
+        right_frame = ttk.Frame(paned_window)
+        paned_window.add(right_frame, weight=1)
+
+        notebook = ttk.Notebook(right_frame)
+        notebook.pack(expand=True, fill='both', padx=10, pady=5)
+
+        self.crear_tabla_tokens(notebook)
+        self.crear_tabla_errores(notebook)
+
+    def crear_tabla(self, parent, titulo, columnas):
+        table_container = ttk.LabelFrame(parent, text=titulo)
+        table_container.pack(expand=True, fill='both')
+
+        scroll_y = ttk.Scrollbar(table_container)
+        scroll_y.pack(side=tk.RIGHT, fill=tk.Y)
+
+        tabla = ttk.Treeview(table_container, columns=columnas, show="headings", yscrollcommand=scroll_y.set)
+        tabla.pack(expand=True, fill='both')
+        scroll_y.config(command=tabla.yview)
+        return tabla
+
+    def crear_tabla_tokens(self, parent):
+        columnas = ("Lexema", "Tipo", "Fila", "Columna")
+        self.tabla_tokens = self.crear_tabla(parent, "Tabla de Tokens", columnas)
+
+    def crear_tabla_errores(self, parent):
+        columnas = ("Tipo", "Linea", "Columna", "Token", "Descripcion")
+        self.tabla_errores = self.crear_tabla(parent, "Tabla de Errores", columnas)
+
+    def crear_barra_estado(self):
+        self.barra_estado = ttk.Label(self.root, text="Posición: 1:0")
+        self.barra_estado.pack(side=tk.BOTTOM, fill=tk.X)
+        self.area_texto.bind("<KeyRelease>", self.actualizar_posicion)
+
+    def on_button_hover(self, event, button):
+        button.configure(cursor="hand2")
+
+    def on_button_leave(self, event, button):
+        button.configure(cursor="")
+
+    def limpiar_datos(self):
+        self.area_texto.delete(1.0, tk.END)
+        for tabla in [self.tabla_tokens, self.tabla_errores]:
+            tabla.delete(*tabla.get_children())
+        self.actualizar_posicion(None)
+
+    def actualizar_posicion(self, event):
+        cursor_pos = self.area_texto.index(tk.INSERT)
+        row, col = cursor_pos.split(".")
+        self.barra_estado.config(text=f"Posición: {row}:{col}")
+
+    # Archivos
+    def nuevo_archivo(self):
+        if messagebox.askokcancel("Nuevo", "¿Quieres crear un nuevo archivo? Se borrarán los cambios no guardados."):
+            self.limpiar_datos()
+
+    def abrir_archivo(self):
+        ruta_archivo = filedialog.askopenfilename(defaultextension=".txt",
+                                                  filetypes=[("Archivos de texto", "*.txt"),
+                                                             ("Todos los archivos", "*.*")])
+        if ruta_archivo:
+            with open(ruta_archivo, 'r') as archivo:
+                contenido = archivo.read()
+            self.area_texto.delete(1.0, tk.END)
+            self.area_texto.insert(tk.END, contenido)
+
+    def guardar_archivo(self):
+        contenido = self.area_texto.get(1.0, tk.END)
+        if not hasattr(self, 'ruta_archivo') or not self.ruta_archivo:
+            self.guardar_como()
+        else:
+            with open(self.ruta_archivo, 'w') as archivo:
+                archivo.write(contenido)
+
+    def guardar_como(self):
+        archivo = filedialog.asksaveasfilename(defaultextension=".txt",
+                                               filetypes=[("Archivos de texto", "*.txt"),
+                                                          ("Todos los archivos", "*.*")])
+        if archivo:
+            self.ruta_archivo = archivo
+            self.guardar_archivo()
+
+    def analizar(self):
+        pass  # Aquí iría el código de análisis
+
+# Inicializar la aplicación
 if __name__ == "__main__":
-    root = gui.Tk()
-    app = AnalizadorFortran(root)
+    root = tk.Tk()
+    app = main(root)
     root.mainloop()

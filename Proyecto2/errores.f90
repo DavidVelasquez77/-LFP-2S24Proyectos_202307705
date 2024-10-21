@@ -100,8 +100,8 @@ contains
         END DO
     end subroutine generar_reporte_consola
     
-    subroutine exportar_diagnostico_json()
-        integer :: i, unidad_salida
+    subroutine exportar_diagnostico()
+         integer :: i, unidad_salida
         character(len=20) :: str_fila, str_columna
         
         unidad_salida = 6  ! Salida estándar
@@ -139,6 +139,6 @@ contains
         
         write(unidad_salida, '(A)') ']}'
         call flush(unidad_salida)
-    end subroutine exportar_diagnostico_json
+    end subroutine exportar_diagnostico
 
 END MODULE errores

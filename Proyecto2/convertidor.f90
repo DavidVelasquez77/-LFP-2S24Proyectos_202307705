@@ -1,167 +1,218 @@
-MODULE convertidor
-    use gestor_recursos_multimedia
-    use validador_logico
-    use manipulador_objetos
-    use administrador_buffer
-    use manejador_graficos
-    use controlador_efectos_visuales
+MODULE creador_interfaz
+    use administrador_elementos
+    use validador_web
+    use estructuras_base
     implicit none
 
-    private
-    public :: ejecutar_proceso_inicial
-
-    type :: recurso_multimedia
-        character(250) :: direccion_archivo
-        integer :: duracion_efecto
-        real :: nivel_transparencia
-        logical :: auto_reproducir
-        character(60) :: clase_transicion
+    type :: elemento_web
+        character(50) :: tipo
+        character(50) :: id
+        character(100) :: contenido
+        character(50) :: clase
+        integer :: nivel_anidacion
+        logical :: es_auto_cerrado
+        character(50), allocatable :: atributos(:)
+        character(50), allocatable :: valores(:)
     end type
 
-    type :: filtro_visual
-        real :: valor_desenfoque
-        real :: angulo_rotacion
-        real :: factor_escala
-        character(60) :: sombra_tipo
-        logical :: aplicar_gradiente
+    type :: plantilla_elemento
+        character(50) :: nombre
+        character(200) :: estructura_base
+        logical :: requiere_cierre
     end type
+
+    type(plantilla_elemento), parameter :: TIPOS_ELEMENTOS(5) = [ &
+        plantilla_elemento("entrada", '<input type="%s" id="%s" value="%s"/>', .false.), &
+        plantilla_elemento("etiqueta", '<label id="%s">%s</label>', .true.), &
+        plantilla_elemento("contenedor", '<div id="%s" class="%s">', .true.), &
+        plantilla_elemento("boton", '<button id="%s" type="button">%s</button>', .true.), &
+        plantilla_elemento("area_texto", '<textarea id="%s">%s</textarea>', .true.) &
+    ]
 
 contains
 
-subroutine ejecutar_proceso_inicial()
-    implicit none
-    type(recurso_multimedia), allocatable :: recursos_cargados(:)
-    type(filtro_visual), allocatable :: efectos_aplicados(:)
-    logical :: sistema_listo
-    integer :: total_recursos = 0
-    real :: tiempo_inicializacion = 0.0
+function iniciar_proceso() result(exito)
+    logical :: exito
+    character(100) :: ruta_salida
+    
+    exito = .false.
+    ruta_salida = "salida/"
+    
+    if (validar_componentes()) then
+        call procesar_estructura(ruta_salida)
+        call aplicar_estilos(ruta_salida)
+        exito = .true.
+    endif
+end function
 
-    call configurar_recursos_sistema()
-    call preparar_entorno_desarrollo()
-
-    if (evaluar_estado_sistema()) then
-        call construir_estructura_html()
-        call ejecutar_efectos_graficos()
-        call optimizar_almacenamiento()
-    end if
+subroutine procesar_estructura(ruta)
+    character(*), intent(in) :: ruta
+    integer :: unidad_doc
+    
+    open(newunit=unidad_doc, file=trim(ruta)//'interfaz.html', status='replace')
+    
+    call insertar_estructura_base(unidad_doc)
+    call construir_cuerpo_web(unidad_doc)
+    call cerrar_estructura(unidad_doc)
+    
+    close(unidad_doc)
 end subroutine
 
-subroutine configurar_recursos_sistema()
-    implicit none
-    character(120) :: buffer_temporal
-    integer :: estado_cache
-    logical :: recursos_inicializados
-
-    call asignar_memoria_dinamica()
-    call cargar_modulos_externos()
-    call iniciar_renderizador_grafico()
+subroutine insertar_estructura_base(unidad)
+    integer, intent(in) :: unidad
+    
+    write(unidad, '(a)') '<!DOCTYPE html>'
+    write(unidad, '(a)') '<html lang="es">'
+    write(unidad, '(a)') '<head>'
+    write(unidad, '(a)') '    <meta charset="UTF-8">'
+    write(unidad, '(a)') '    <meta name="viewport" content="width=device-width, initial-scale=1.0">'
+    write(unidad, '(a)') '    <link rel="stylesheet" href="visual.css">'
+    write(unidad, '(a)') '    <title>Interfaz Generada</title>'
+    write(unidad, '(a)') '</head>'
+    write(unidad, '(a)') '<body>'
 end subroutine
 
-subroutine construir_estructura_html()
-    implicit none
-    integer :: archivo_web
-    character(600) :: plantilla_html
-    logical :: comprimir_datos = .true.
-
-    call abrir_archivo_web(archivo_web, "contenido_interactivo.html")
-
-    call insertar_encabezado_html(archivo_web)
-    call manejar_objetos_multimedia()
-    call definir_zonas_interactivas()
-    call optimizar_para_SEO()
-    call incluir_analiticas()
-
-    call cerrar_archivo_web(archivo_web)
-end subroutine
-
-subroutine manejar_objetos_multimedia()
-    implicit none
-    type(recurso_multimedia) :: item_multimedia
-    integer :: indice_actual
-    logical :: procesamiento_correcto
-
-    do indice_actual = 1, obtener_cantidad_objetos()
-        call cargar_item(item_multimedia)
-        call aplicar_transicion(item_multimedia)
-        call optimizar_item(item_multimedia)
-        call guardar_item(item_multimedia)
+subroutine construir_cuerpo_web(unidad)
+    integer, intent(in) :: unidad
+    integer :: i
+    type(elemento_web) :: elemento_actual
+    
+    do i = 1, total_elementos
+        elemento_actual = obtener_elemento(i)
+        if (es_elemento_raiz(elemento_actual)) then
+            call procesar_elemento_web(unidad, elemento_actual)
+        endif
     end do
 end subroutine
 
-subroutine ejecutar_efectos_graficos()
-    implicit none
-    type(filtro_visual) :: filtro_actual
-    real :: parametros_animacion(4)
-    character(120) :: tipo_efecto
+recursive subroutine procesar_elemento_web(unidad, elemento)
+    integer, intent(in) :: unidad
+    type(elemento_web), intent(in) :: elemento
+    character(1000) :: linea_html
+    character(4) :: sangria
+    integer :: i
     
-    parametros_animacion = [0.8, 1.2, 1.8, 0.9]
+    sangria = repeat('    ', elemento%nivel_anidacion)
     
-    call inicializar_motor_efectos()
-    call configurar_propiedades_visuales()
-    call ejecutar_transformaciones_graficas()
+    ! Generar HTML según el tipo de elemento
+    select case (trim(elemento%tipo))
+        case ('contenedor')
+            write(unidad, '(a,a)') sangria, '<div class="contenedor-flex" id="'//trim(elemento%id)//'">'
+            call procesar_hijos(unidad, elemento%id, elemento%nivel_anidacion + 1)
+            write(unidad, '(a,a)') sangria, '</div>'
+            
+        case ('entrada')
+            linea_html = generar_entrada(elemento)
+            write(unidad, '(a,a)') sangria, trim(linea_html)
+            
+        case ('boton')
+            write(unidad, '(a,a)') sangria, '<button class="boton-personalizado" id="'// &
+                                  trim(elemento%id)//'">'//trim(elemento%contenido)//'</button>'
+                                  
+        case ('etiqueta')
+            write(unidad, '(a,a)') sangria, '<label class="etiqueta-moderna" id="'// &
+                                  trim(elemento%id)//'">'//trim(elemento%contenido)//'</label>'
+    end select
 end subroutine
 
-subroutine generar_estilos_personalizados()
-    implicit none
-    integer :: archivo_css
-    character(220) :: regla_css
-    logical :: usar_prefijo = .true.
+function generar_entrada(elemento) result(html)
+    type(elemento_web), intent(in) :: elemento
+    character(200) :: html
+    character(50) :: tipo_entrada
     
-    call abrir_archivo_css(archivo_css)
-
-    call normalizar_css()
-    call declarar_variables_css()
-    call crear_media_queries()
-    call implementar_keyframes()
-    call refinar_selectores()
-
-    call cerrar_archivo_css(archivo_css)
-end subroutine
-
-subroutine ejecutar_transformaciones_graficas()
-    implicit none
-    character(120) :: transformacion_css
-    real :: matriz_transformacion(3)
-    logical :: habilitar_3d = .true.
-
-    call inicializar_transformaciones()
-    call ajustar_perspectiva()
-    call aplicar_matriz_css()
-end subroutine
-
-subroutine optimizar_almacenamiento()
-    implicit none
-    real :: grado_compresion
-    logical :: eliminar_no_usados = .true.
-    character(60) :: metodo_optimizado
-
-    call analizar_utilizacion_recursos()
-    call comprimir_archivos()
-    call minimizar_codigo()
-    call optimizar_graficos()
-end subroutine
-
-subroutine definir_zonas_interactivas()
-    implicit none
-    character(220) :: tipo_interaccion_usuario
-    integer :: parametros_eventos(4)
-    logical :: permitir_gestos_touch = .true.
-
-    call configurar_eventos_interactivos()
-    call definir_gestos_touch()
-    call implementar_gestos_usuario()
-end subroutine
-
-function evaluar_estado_sistema() result(estado_sistema)
-    implicit none
-    logical :: estado_sistema
-    character(120) :: estado_actual
-    real :: capacidad_memoria
-
-    estado_sistema = .true.
-    call validar_sistema()
-    call revisar_dependencias()
-    call verificar_autorizaciones()
+    select case (trim(elemento%clase))
+        case ('texto')
+            tipo_entrada = 'text'
+        case ('clave')
+            tipo_entrada = 'password'
+        case ('numero')
+            tipo_entrada = 'number'
+        case ('fecha')
+            tipo_entrada = 'date'
+        case default
+            tipo_entrada = 'text'
+    end select
+    
+    write(html, '(a)') '<input type="'//trim(tipo_entrada)//'" '// &
+                       'id="'//trim(elemento%id)//'" '// &
+                       'class="entrada-moderna" '// &
+                       'value="'//trim(elemento%contenido)//'"/>'
 end function
 
-END MODULE convertidor
+subroutine aplicar_estilos(ruta)
+    character(*), intent(in) :: ruta
+    integer :: unidad_est
+    
+    open(newunit=unidad_est, file=trim(ruta)//'visual.css', status='replace')
+    
+    call escribir_estilos_base(unidad_est)
+    call escribir_estilos_componentes(unidad_est)
+    call escribir_estilos_responsivos(unidad_est)
+    
+    close(unidad_est)
+end subroutine
+
+subroutine escribir_estilos_base(unidad)
+    integer, intent(in) :: unidad
+    
+    write(unidad, '(a)') '* {'
+    write(unidad, '(a)') '    margin: 0;'
+    write(unidad, '(a)') '    padding: 0;'
+    write(unidad, '(a)') '    box-sizing: border-box;'
+    write(unidad, '(a)') '}'
+    write(unidad, '(a)') ''
+    write(unidad, '(a)') 'body {'
+    write(unidad, '(a)') '    font-family: Arial, sans-serif;'
+    write(unidad, '(a)') '    line-height: 1.6;'
+    write(unidad, '(a)') '    color: #333;'
+    write(unidad, '(a)') '}'
+end subroutine
+
+subroutine escribir_estilos_componentes(unidad)
+    integer, intent(in) :: unidad
+    
+    write(unidad, '(a)') '.contenedor-flex {'
+    write(unidad, '(a)') '    display: flex;'
+    write(unidad, '(a)') '    flex-direction: column;'
+    write(unidad, '(a)') '    gap: 1rem;'
+    write(unidad, '(a)') '    padding: 1rem;'
+    write(unidad, '(a)') '}'
+    
+    write(unidad, '(a)') '.entrada-moderna {'
+    write(unidad, '(a)') '    padding: 0.5rem;'
+    write(unidad, '(a)') '    border: 1px solid #ddd;'
+    write(unidad, '(a)') '    border-radius: 4px;'
+    write(unidad, '(a)') '    transition: border-color 0.3s;'
+    write(unidad, '(a)') '}'
+    
+    write(unidad, '(a)') '.boton-personalizado {'
+    write(unidad, '(a)') '    padding: 0.5rem 1rem;'
+    write(unidad, '(a)') '    background-color: #007bff;'
+    write(unidad, '(a)') '    color: white;'
+    write(unidad, '(a)') '    border: none;'
+    write(unidad, '(a)') '    border-radius: 4px;'
+    write(unidad, '(a)') '    cursor: pointer;'
+    write(unidad, '(a)') '}'
+end subroutine
+
+subroutine escribir_estilos_responsivos(unidad)
+    integer, intent(in) :: unidad
+    
+    write(unidad, '(a)') '@media (max-width: 768px) {'
+    write(unidad, '(a)') '    .contenedor-flex {'
+    write(unidad, '(a)') '        padding: 0.5rem;'
+    write(unidad, '(a)') '    }'
+    
+    write(unidad, '(a)') '    .entrada-moderna {'
+    write(unidad, '(a)') '        width: 100%;'
+    write(unidad, '(a)') '    }'
+    write(unidad, '(a)') '}'
+end subroutine
+
+function es_elemento_raiz(elemento) result(es_raiz)
+    type(elemento_web), intent(in) :: elemento
+    logical :: es_raiz
+    es_raiz = elemento%nivel_anidacion == 0
+end function
+
+END MODULE creador_interfaz

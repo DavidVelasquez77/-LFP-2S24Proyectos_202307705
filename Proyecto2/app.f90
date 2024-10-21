@@ -1,185 +1,335 @@
-PROGRAM lexer_core
-    USE token_handler
-    USE error_processor
-    USE output_generator
-    USE syntax_checker
-  
+PROGRAMA app
+    USE manejador_memoria
+    USE controlador_entrada
+    USE generador_informes
+    
     IMPLICIT NONE
-    INTEGER :: input_size, line_count, char_pos, machine_state, cursor
-    INTEGER :: io_result, input_unit
-    CHARACTER(LEN=200000) :: raw_text, line_buffer
-    CHARACTER(LEN=1) :: current_char
-    CHARACTER(LEN=200) :: token_buffer
-    INTEGER :: html_unit, css_unit
-    INTEGER :: io_status
-    CHARACTER(LEN=100) :: html_file = "lexer_output.html"
-    CHARACTER(LEN=100) :: css_file = "lexer_styles.css"
-    machine_state = 0
-    cursor = 1
-    char_pos = 0
-    line_count = 1
-    token_buffer = ""
-  
-    raw_text = ""
-  
-    DO
-      READ(*, '(A)', IOSTAT=io_result) line_buffer
-      IF (io_result < 0) EXIT
-      raw_text = TRIM(raw_text) // TRIM(line_buffer) // NEW_LINE('a')
-    END DO
-  
-    CLOSE(input_unit)
-  
-    input_size = LEN_TRIM(raw_text)
-  
-    DO WHILE(cursor <= input_size)
-      current_char = raw_text(cursor:cursor)
-      SELECT CASE (machine_state)
-        CASE (0)
-          IF (IS_SPECIAL_CHAR(current_char)) THEN
-            machine_state = 1
-            char_pos = char_pos + 1
-          ELSE IF (IS_ALPHA(current_char)) THEN
-            machine_state = 2
-          ELSE IF (IS_DIGIT(current_char)) THEN
-            machine_state = 3
-          ELSE IF (current_char == '"') THEN
-            token_buffer = TRIM(token_buffer) // current_char
-            char_pos = char_pos + 1
-            cursor = cursor + 1 
-            machine_state = 4      
-          ELSE IF (current_char == '/') THEN
-            machine_state = 7
-            token_buffer = TRIM(token_buffer) // current_char
-            char_pos = char_pos + 1
-            cursor = cursor + 1 
-          ELSE IF (IS_NEWLINE(current_char)) THEN
-            char_pos = 0
-            line_count = line_count + 1
-            cursor = cursor + 1
-          ELSE IF (IS_TAB(current_char)) THEN
-            char_pos = char_pos + 4
-            cursor = cursor + 1
-          ELSE IF (IS_SPACE(current_char)) THEN
-            char_pos = char_pos + 1
-            cursor = cursor + 1  
-          ELSE
-            CALL log_error(current_char, "invalido", line_count, char_pos)
-            char_pos = char_pos + 1
-            cursor = cursor + 1 
-          END IF
-          
-        CASE (1)
-          IF (IS_SPECIAL_CHAR(current_char)) THEN
-            CALL register_token(current_char, get_token_category(current_char), line_count, char_pos)
-          ELSE
-            CALL log_error(current_char, "invalido", line_count, char_pos)
-            char_pos = char_pos + 1
-            cursor = cursor + 1 
-          END IF
-          cursor = cursor + 1
-          machine_state = 0
-  
-        CASE (2)
-          IF (IS_ALPHANUMERIC(current_char)) THEN
-            token_buffer = TRIM(token_buffer) // current_char
-            char_pos = char_pos + 1
-            cursor = cursor + 1
-          ELSE
-            CALL process_identifier(token_buffer, line_count, char_pos)
-            token_buffer = ""
-            machine_state = 0      
-          END IF
-  
-        CASE (3)
-          IF (IS_DIGIT(current_char)) THEN
-            token_buffer = TRIM(token_buffer) // current_char
-            char_pos = char_pos + 1
-            cursor = cursor + 1
-          ELSE
-            CALL register_token(token_buffer, 'numeric', line_count, char_pos)
-            token_buffer = ""
-            machine_state = 0
-          END IF
-  
-        CASE (4)
-          IF (IS_PRINTABLE(current_char) .AND. current_char /= '"') THEN
-            token_buffer = TRIM(token_buffer) // current_char
-            char_pos = char_pos + 1
-            cursor = cursor + 1 
-            machine_state = 6
-          ELSE IF (current_char == '"') THEN
-            machine_state = 5
-          ELSE
-            CALL log_error(current_char, "Non-printable character in string", line_count, char_pos)
-            token_buffer = ""
-            machine_state = 0
-          END IF
-  
-        CASE (5)
-          token_buffer = TRIM(token_buffer) // current_char
-          char_pos = char_pos + 1
-          cursor = cursor + 1
-          CALL register_token(token_buffer, 'string_literal', line_count, char_pos)
-          token_buffer = ""
-          machine_state = 0
-              
-        CASE (6)
-          IF (IS_PRINTABLE(current_char) .AND. current_char /= '"') THEN
-            token_buffer = TRIM(token_buffer) // current_char
-            char_pos = char_pos + 1
-            cursor = cursor + 1 
-          ELSE IF (current_char == '"') THEN
-            machine_state = 5
-          ELSE
-            CALL log_error(current_char, "Unclosed string literal", line_count, char_pos)
-            token_buffer = ""
-            machine_state = 0
-          END IF             
-        CASE (7)
-          IF (current_char == '/') THEN
-            machine_state = 8
-            token_buffer = TRIM(token_buffer) // current_char
-            char_pos = char_pos + 1
-            cursor = cursor + 1
-          ELSE IF (current_char == '*') THEN
-            machine_state = 9
-            token_buffer = TRIM(token_buffer) // current_char
-            char_pos = char_pos + 1
-            cursor = cursor + 1
-          ELSE
-            CALL register_token(token_buffer, 'division_op', line_count, char_pos - 1)
-            token_buffer = ""
-            machine_state = 0
-          END IF
+    INTEGER :: tamano_buffer, num_linea, posicion, estado
+    INTEGER :: codigo_io, unidad_archivo, puntero
+    CHARACTER(LEN=500000) :: contenido_base, memoria_temp
+    CHARACTER(LEN=1) :: letra_actual
+    CHARACTER(LEN=500) :: cadena_temp
+    INTEGER :: modo_operacion, codigo_error
+    INTEGER :: contador_elementos, limite_elementos
+    INTEGER :: tipo_actual, valor_retorno
+    
+    ! Inicialización
+    estado = 1
+    puntero = 1
+    posicion = 0
+    num_linea = 1
+    modo_operacion = 1
+    codigo_error = 0
+    limite_elementos = 1000
+    
+    ! Estructura principal
+    TYPE :: bloque_datos
+        CHARACTER(LEN=100) :: datos
+        INTEGER :: categoria
+        INTEGER :: posicion_linea
+    END TYPE bloque_datos
+    
+    TYPE(bloque_datos), ALLOCATABLE :: almacen(:)
+    ALLOCATE(almacen(limite_elementos))
+    
+    ! Iniciar procesamiento
+    contenido_base = ""
+    CALL iniciar_carga()
+    
+    ! Procesamiento principal
+    DO WHILE (modo_operacion == 1 .AND. puntero <= LEN_TRIM(contenido_base))
+        letra_actual = contenido_base(puntero:puntero)
         
-        CASE (8)
-          IF (IS_NEWLINE(current_char)) THEN
-            CALL register_token(TRIM(token_buffer), 'line_comment', line_count, char_pos - LEN_TRIM(token_buffer))
-            token_buffer = ""
-            machine_state = 0
-            line_count = line_count + 1
-            char_pos = 0
-          ELSE
-            token_buffer = TRIM(token_buffer) // current_char
-            char_pos = char_pos + 1
-          END IF
-          cursor = cursor + 1
-        
-      END SELECT
+        SELECT CASE (estado)
+            CASE (1) 
+                CALL procesar_entrada()
+            CASE (2) 
+                CALL analizar_texto()
+            CASE (3) 
+                CALL analizar_digitos()
+            CASE (4) 
+                CALL analizar_operadores()
+            CASE (5) 
+                CALL manejar_espaciado()
+        END SELECT
     END DO
     
-    CALL parse_syntax()
-    CALL display_errors()
-    CALL generate_token_report()
-    CALL generate_error_report()
-    CALL display_label_info()
-    CALL display_container_info()
-    CALL display_button_info()
-    CALL display_key_info()
-    CALL display_text_info()
-    CALL generate_output_files()
-    CALL display_python_tokens()
-    CALL display_python_errors()
+    CONTAINS
     
-  END PROGRAM lexer_core
+    SUBROUTINE iniciar_carga()
+        INTEGER :: estado_entrada
+        
+        DO
+            READ(*, '(A)', IOSTAT=estado_entrada) memoria_temp
+            IF (estado_entrada < 0) EXIT
+            contenido_base = TRIM(contenido_base) // TRIM(memoria_temp) // ACHAR(10)
+        END DO
+    END SUBROUTINE iniciar_carga
+    
+    SUBROUTINE procesar_entrada()
+        valor_retorno = verificar_caracter(letra_actual, 1)
+        IF (valor_retorno == 1) THEN
+            estado = 2
+            cadena_temp = letra_actual
+        ELSE IF (valor_retorno == 2) THEN
+            estado = 3
+            cadena_temp = letra_actual
+        ELSE IF (valor_retorno == 3) THEN
+            estado = 4
+            CALL registrar_elemento(letra_actual, 4, num_linea)
+        ELSE IF (valor_retorno == 4) THEN
+            estado = 5
+        END IF
+        puntero = puntero + 1
+    END SUBROUTINE procesar_entrada
+    
+    SUBROUTINE analizar_texto()
+        valor_retorno = verificar_caracter(letra_actual, 2)
+        IF (valor_retorno == 1) THEN
+            cadena_temp = TRIM(cadena_temp) // letra_actual
+            puntero = puntero + 1
+        ELSE
+            CALL registrar_elemento(cadena_temp, 1, num_linea)
+            cadena_temp = ""
+            estado = 1
+        END IF
+    END SUBROUTINE analizar_texto
+    
+    SUBROUTINE analizar_digitos()
+        valor_retorno = verificar_caracter(letra_actual, 3)
+        IF (valor_retorno == 1) THEN
+            cadena_temp = TRIM(cadena_temp) // letra_actual
+            puntero = puntero + 1
+        ELSE
+            CALL registrar_elemento(cadena_temp, 2, num_linea)
+            cadena_temp = ""
+            estado = 1
+        END IF
+    END SUBROUTINE analizar_digitos
+    
+    SUBROUTINE analizar_operadores()
+        CALL registrar_elemento(letra_actual, 3, num_linea)
+        estado = 1
+        puntero = puntero + 1
+    END SUBROUTINE analizar_operadores
+    
+    SUBROUTINE manejar_espaciado()
+        IF (letra_actual == ACHAR(10)) THEN
+            num_linea = num_linea + 1
+        END IF
+        estado = 1
+        puntero = puntero + 1
+    END SUBROUTINE manejar_espaciado
+    
+    SUBROUTINE registrar_elemento(contenido, tipo, linea)
+        CHARACTER(LEN=*), INTENT(IN) :: contenido
+        INTEGER, INTENT(IN) :: tipo, linea
+        
+        contador_elementos = contador_elementos + 1
+        IF (contador_elementos > limite_elementos) THEN
+            CALL ampliar_memoria()
+        END IF
+        
+        almacen(contador_elementos)%datos = contenido
+        almacen(contador_elementos)%categoria = tipo
+        almacen(contador_elementos)%posicion_linea = linea
+    END SUBROUTINE registrar_elemento
+    
+    SUBROUTINE ampliar_memoria()
+        TYPE(bloque_datos), ALLOCATABLE :: temp(:)
+        INTEGER :: nuevo_tamano
+        
+        nuevo_tamano = limite_elementos * 2
+        ALLOCATE(temp(nuevo_tamano))
+        temp(1:limite_elementos) = almacen
+        DEALLOCATE(almacen)
+        ALLOCATE(almacen(nuevo_tamano))
+        almacen = temp
+        limite_elementos = nuevo_tamano
+        DEALLOCATE(temp)
+    END SUBROUTINE ampliar_memoria
+    
+    INTEGER FUNCTION verificar_caracter(c, modo)
+        CHARACTER(LEN=1), INTENT(IN) :: c
+        INTEGER, INTENT(IN) :: modo
+        INTEGER :: resultado
+        
+        resultado = 0
+        
+ ! Analizador léxico simplificado
+do while(puntero <= len)
+    char = contenido(puntero:puntero)
+    
+    select case (estado)
+        case (0) ! Estado inicial
+            if (es_espacio(char)) then
+                call manejar_espacios()
+            elseif (es_letra(char)) then
+                estado = 1  ! Identificadores y palabras reservadas
+                aux_tkn = char
+            elseif (es_numero(char)) then
+                estado = 2  ! Números
+                aux_tkn = char
+            elseif (es_simbolo(char)) then
+                estado = 3  ! Símbolos especiales
+                aux_tkn = char
+            elseif (char == '"') then
+                estado = 4  ! Cadenas literales
+                aux_tkn = char
+            elseif (char == '/') then
+                estado = 5  ! Posible comentario
+                aux_tkn = char
+            else
+                call agregar_error_lexico(char, "Caracter no reconocido", fila, columna)
+            end if
+            avanzar_puntero()
+
+        case (1) ! Identificadores y palabras reservadas
+            if (es_letra(char) .or. es_numero(char)) then
+                aux_tkn = trim(aux_tkn) // char
+                avanzar_puntero()
+            else
+                call procesar_identificador(aux_tkn)
+                estado = 0
+            end if
+
+        case (2) ! Números
+            if (es_numero(char)) then
+                aux_tkn = trim(aux_tkn) // char
+                avanzar_puntero()
+            else
+                call agregar_token(aux_tkn, 'tk_num', fila, columna)
+                aux_tkn = ""
+                estado = 0
+            end if
+
+        case (3) ! Símbolos especiales
+            call procesar_simbolo(aux_tkn)
+            estado = 0
+
+        case (4) ! Cadenas literales
+            if (char == '"') then
+                aux_tkn = trim(aux_tkn) // char
+                call agregar_token(aux_tkn, 'tk_literal', fila, columna)
+                aux_tkn = ""
+                estado = 0
+                avanzar_puntero()
+            elseif (es_caracter_valido(char)) then
+                aux_tkn = trim(aux_tkn) // char
+                avanzar_puntero()
+            else
+                call agregar_error_lexico(char, "Caracter inválido en cadena", fila, columna)
+                estado = 0
+            end if
+
+        case (5) ! Inicio de comentario
+            if (char == '/') then
+                estado = 6  ! Comentario de línea
+                aux_tkn = trim(aux_tkn) // char
+            elseif (char == '*') then
+                estado = 7  ! Comentario multilínea
+                aux_tkn = trim(aux_tkn) // char
+            else
+                call agregar_token('/', 'tk_division', fila, columna)
+                estado = 0
+            end if
+            avanzar_puntero()
+
+        case (6) ! Comentario de línea
+            if (char == NEW_LINE) then
+                call agregar_token(aux_tkn, 'comentario', fila, columna)
+                aux_tkn = ""
+                estado = 0
+                nueva_linea()
+            else
+                aux_tkn = trim(aux_tkn) // char
+                avanzar_puntero()
+            end if
+
+        case (7) ! Comentario multilínea
+            if (char == '*' .and. siguiente_char() == '/') then
+                aux_tkn = trim(aux_tkn) // '*/'
+                call agregar_token(aux_tkn, 'comentario', fila, columna)
+                aux_tkn = ""
+                estado = 0
+                avanzar_puntero()
+                avanzar_puntero()
+            else
+                if (char == NEW_LINE) then
+                    nueva_linea()
+                else
+                    aux_tkn = trim(aux_tkn) // char
+                    avanzar_puntero()
+                end if
+            end if
+    end select
+end do
+
+contains
+    logical function es_letra(c)
+        character :: c
+        es_letra = (c >= 'A' .and. c <= 'Z') .or. (c >= 'a' .and. c <= 'z')
+    end function
+
+    logical function es_numero(c)
+        character :: c
+        es_numero = (c >= '0' .and. c <= '9')
+    end function
+
+    logical function es_simbolo(c)
+        character :: c
+        es_simbolo = any(c == [';', '.', ',', '<', '>', '(', ')', '-', '!'])
+    end function
+
+    logical function es_espacio(c)
+        character :: c
+        es_espacio = (ichar(c) == 32 .or. ichar(c) == 9 .or. ichar(c) == 10)
+    end function
+
+    subroutine procesar_identificador(token)
+        character(len=*) :: token
+        select case (token)
+            case ('Contenedor', 'Etiqueta', 'Boton', 'Texto', 'AreaTexto', &
+                  'RadioBoton', 'Controles', 'Colocacion')
+                call agregar_token(token, 'tk_control', fila, columna)
+            case ('setAncho', 'setAlto', 'setColorFondo', 'setColorLetra', &
+                  'setTexto', 'setPosicion', 'add')
+                call agregar_token(token, 'tk_metodo', fila, columna)
+            case default
+                call agregar_token(token, 'tk_id', fila, columna)
+        end select
+    end subroutine
+
+    subroutine manejar_espacios()
+        if (ichar(char) == 10) then
+            nueva_linea()
+        elseif (ichar(char) == 9) then
+            columna = columna + 4
+        else
+            columna = columna + 1
+        end if
+        puntero = puntero + 1
+    end subroutine
+        
+        verificar_caracter = resultado
+    END FUNCTION verificar_caracter
+    
+    SUBROUTINE generar_reporte()
+        INTEGER :: i
+        
+        OPEN(UNIT=10, FILE=nombre_salida, STATUS='REPLACE', ACTION='WRITE')
+        
+        WRITE(10, *) "=== REPORTE DE PROCESAMIENTO ==="
+        WRITE(10, *) "Total elementos procesados:", contador_elementos
+        WRITE(10, *) "Total líneas procesadas:", num_linea
+        
+        DO i = 1, contador_elementos
+            WRITE(10, *) "Elemento:", TRIM(almacen(i)%datos), &
+                        "Tipo:", almacen(i)%categoria, &
+                        "Línea:", almacen(i)%posicion_linea
+        END DO
+        
+        CLOSE(10)
+    END SUBROUTINE generar_reporte
+    
+END PROGRAMA app

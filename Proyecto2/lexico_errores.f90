@@ -1,145 +1,145 @@
-MODULE lexAnalyzer
+MODULE lexico_errores
     implicit none
 
-    type :: InvalidToken
-        CHARACTER(LEN = 150) :: token_sequence
-        CHARACTER(LEN = 200) :: issue_description
-        CHARACTER(LEN = 50) :: error_category
-        INTEGER :: row_position
-        INTEGER :: column_position
-        REAL :: detection_time
-        CHARACTER(LEN = 100) :: line_context
-        LOGICAL :: is_processed = .false.
-    end type InvalidToken
+    type :: tokenInvalido
+        CHARACTER(LEN = 150) :: secuencia_token
+        CHARACTER(LEN = 200) :: descripcion_problema
+        CHARACTER(LEN = 50) :: categoria_error
+        INTEGER :: posicion_fila
+        INTEGER :: posicion_columna
+        REAL :: tiempo_deteccion
+        CHARACTER(LEN = 100) :: contexto_linea
+        LOGICAL :: esta_procesado = .false.
+    end type tokenInvalido
 
-    type :: AnalysisStatistics
-        INTEGER :: analyzed_tokens = 0
-        INTEGER :: invalid_token_count = 0
-        INTEGER :: processed_lines = 0
-        REAL :: total_analysis_time = 0.0
-        CHARACTER(LEN = 100) :: last_valid_token = ""
-    end type AnalysisStatistics
+    type :: EstadisticasAnalisis
+        INTEGER :: tokens_analizados = 0
+        INTEGER :: contador_tokens_invalidos = 0
+        INTEGER :: lineas_procesadas = 0
+        REAL :: tiempo_total_analisis = 0.0
+        CHARACTER(LEN = 100) :: ultimo_token_valido = ""
+    end type EstadisticasAnalisis
 
-    type(InvalidToken), ALLOCATABLE :: invalid_tokens_record(:)
-    type(AnalysisStatistics) :: stats
-    LOGICAL :: is_active = .false.
+    type(tokenInvalido), ALLOCATABLE :: registro_tokens_invalidos(:)
+    type(EstadisticasAnalisis) :: estadisticas
+    LOGICAL :: esta_activo = .false.
 
 contains 
 
-    subroutine start_analysis()
-        if (.NOT. is_active) then
-            if (ALLOCATED(invalid_tokens_record)) DEALLOCATE(invalid_tokens_record)
-            ALLOCATE(invalid_tokens_record(0))
-            stats%analyzed_tokens = 0
-            stats%invalid_token_count = 0
-            stats%processed_lines = 0
-            stats%total_analysis_time = 0.0
-            stats%last_valid_token = ""
-            is_active = .true.
+    subroutine iniciarDetector()
+        if (.NOT. esta_activo) then
+            if (ALLOCATED(registro_tokens_invalidos)) DEALLOCATE(registro_tokens_invalidos)
+            ALLOCATE(registro_tokens_invalidos(0))
+            estadisticas%tokens_analizados = 0
+            estadisticas%contador_tokens_invalidos = 0
+            estadisticas%lineas_procesadas = 0
+            estadisticas%tiempo_total_analisis = 0.0
+            estadisticas%ultimo_token_valido = ""
+            esta_activo = .true.
         end if
-    end subroutine start_analysis
+    end subroutine iniciarDetector
 
-    subroutine log_invalid_token(seq, category, description, line, column, &
-                                  time, context)
-        CHARACTER(LEN=*), INTENT(IN) :: seq, category, description, context
-        INTEGER, INTENT(IN) :: line, column
-        REAL, INTENT(IN) :: time
-        type(InvalidToken) :: new_invalid_token
-        type(InvalidToken), ALLOCATABLE :: temp_buffer(:)
-        INTEGER :: token_count
+    subroutine registrarTokenInvalido(secuencia, categoria, descripcion, linea, columna, &
+                                     tiempo, contexto)
+        CHARACTER(LEN=*), INTENT(IN) :: secuencia, categoria, descripcion, contexto
+        INTEGER, INTENT(IN) :: linea, columna
+        REAL, INTENT(IN) :: tiempo
+        type(tokenInvalido) :: nuevo_token_invalido
+        type(tokenInvalido), ALLOCATABLE :: buffer_temporal(:)
+        INTEGER :: contador_tokens
         
-        if (.NOT. is_active) call start_analysis()
+        if (.NOT. esta_activo) call iniciarDetector()
 
-        new_invalid_token%token_sequence = seq
-        new_invalid_token%error_category = category
-        new_invalid_token%issue_description = description
-        new_invalid_token%row_position = line
-        new_invalid_token%column_position = column
-        new_invalid_token%detection_time = time
-        new_invalid_token%line_context = context
-        new_invalid_token%is_processed = .true.
+        nuevo_token_invalido%secuencia_token = secuencia
+        nuevo_token_invalido%categoria_error = categoria
+        nuevo_token_invalido%descripcion_problema = descripcion
+        nuevo_token_invalido%posicion_fila = linea
+        nuevo_token_invalido%posicion_columna = columna
+        nuevo_token_invalido%tiempo_deteccion = tiempo
+        nuevo_token_invalido%contexto_linea = contexto
+        nuevo_token_invalido%esta_procesado = .true.
 
-        stats%invalid_token_count = stats%invalid_token_count + 1
-        stats%total_analysis_time = stats%total_analysis_time + time
+        estadisticas%contador_tokens_invalidos = estadisticas%contador_tokens_invalidos + 1
+        estadisticas%tiempo_total_analisis = estadisticas%tiempo_total_analisis + tiempo
         
-        if (.NOT. ALLOCATED(invalid_tokens_record)) then
-            ALLOCATE(invalid_tokens_record(1))
-            invalid_tokens_record(1) = new_invalid_token
+        if (.NOT. ALLOCATED(registro_tokens_invalidos)) then
+            ALLOCATE(registro_tokens_invalidos(1))
+            registro_tokens_invalidos(1) = nuevo_token_invalido
         else
-            token_count = size(invalid_tokens_record)
-            ALLOCATE(temp_buffer(token_count + 1))
-            temp_buffer(1:token_count) = invalid_tokens_record
-            temp_buffer(token_count + 1) = new_invalid_token
+            contador_tokens = size(registro_tokens_invalidos)
+            ALLOCATE(buffer_temporal(contador_tokens + 1))
+            buffer_temporal(1:contador_tokens) = registro_tokens_invalidos
+            buffer_temporal(contador_tokens + 1) = nuevo_token_invalido
             
-            DEALLOCATE(invalid_tokens_record)
-            ALLOCATE(invalid_tokens_record(token_count + 1))
-            invalid_tokens_record = temp_buffer
-            DEALLOCATE(temp_buffer)
+            DEALLOCATE(registro_tokens_invalidos)
+            ALLOCATE(registro_tokens_invalidos(contador_tokens + 1))
+            registro_tokens_invalidos = buffer_temporal
+            DEALLOCATE(buffer_temporal)
         end if
-    end subroutine log_invalid_token
+    end subroutine registrarTokenInvalido
 
-    subroutine print_console_report()
+    subroutine imprimirReporteConsola()
         INTEGER :: i
-        CHARACTER(LEN=25) :: str_line, str_column, str_time
+        CHARACTER(LEN=25) :: str_linea, str_columna, str_tiempo
         
-        if (.NOT. is_active .OR. .NOT. ALLOCATED(invalid_tokens_record)) then
-            print *, "Lexical Analysis System: No analysis records found."
+        if (.NOT. esta_activo .OR. .NOT. ALLOCATED(registro_tokens_invalidos)) then
+            print *, "Sistema de Análisis Léxico: No se encontraron registros de análisis."
             return
         end if
         
-        DO i = 1, size(invalid_tokens_record)
-            write(str_line, '(I0)') invalid_tokens_record(i)%row_position
-            write(str_column, '(I0)') invalid_tokens_record(i)%column_position
-            write(str_time, '(F8.3)') invalid_tokens_record(i)%detection_time
+        DO i = 1, size(registro_tokens_invalidos)
+            write(str_linea, '(I0)') registro_tokens_invalidos(i)%posicion_fila
+            write(str_columna, '(I0)') registro_tokens_invalidos(i)%posicion_columna
+            write(str_tiempo, '(F8.3)') registro_tokens_invalidos(i)%tiempo_deteccion
         
         END DO
-    end subroutine print_console_report
+    end subroutine imprimirReporteConsola
     
-    subroutine create_report()
-        INTEGER :: i, output_unit
-        CHARACTER(LEN=25) :: str_line, str_column, str_time
+    subroutine generarReporte()
+        INTEGER :: i, unidad_salida
+        CHARACTER(LEN=25) :: str_linea, str_columna, str_tiempo
         
-        output_unit = 15
-        open(unit=output_unit, file='lexical_analysis_report.md', status='replace')
+        unidad_salida = 15
+        open(unit=unidad_salida, file='reporte_analisis_lexico.md', status='replace')
         
-        write(output_unit, '(A)') "# Lexical Analysis Report"
-        write(output_unit, '(A)') ""
-        write(output_unit, '(A)') "## Statistical Summary"
-        write(output_unit, '(A,I0)') "* Tokens Processed: ", stats%analyzed_tokens
-        write(output_unit, '(A,I0)') "* Invalid Tokens: ", stats%invalid_token_count
-        write(output_unit, '(A,I0)') "* Analyzed Lines: ", stats%processed_lines
-        write(str_time, '(F8.3)') stats%total_analysis_time
-        write(output_unit, '(A,A,A)') "* Total Time: ", trim(str_time), " seconds"
-        write(output_unit, '(A)') ""
+        write(unidad_salida, '(A)') "# Reporte de Análisis Léxico"
+        write(unidad_salida, '(A)') ""
+        write(unidad_salida, '(A)') "## Resumen Estadístico"
+        write(unidad_salida, '(A,I0)') "* Tokens Procesados: ", estadisticas%tokens_analizados
+        write(unidad_salida, '(A,I0)') "* Tokens Inválidos: ", estadisticas%contador_tokens_invalidos
+        write(unidad_salida, '(A,I0)') "* Líneas Analizadas: ", estadisticas%lineas_procesadas
+        write(str_tiempo, '(F8.3)') estadisticas%tiempo_total_analisis
+        write(unidad_salida, '(A,A,A)') "* Tiempo Total: ", trim(str_tiempo), " segundos"
+        write(unidad_salida, '(A)') ""
         
-        if (size(invalid_tokens_record) > 0) then
-            write(output_unit, '(A)') "## Invalid Tokens Detail"
-            write(output_unit, '(A)') ""
+        if (size(registro_tokens_invalidos) > 0) then
+            write(unidad_salida, '(A)') "## Detalle de Tokens Inválidos"
+            write(unidad_salida, '(A)') ""
             
-            DO i = 1, size(invalid_tokens_record)
-                write(str_line, '(I0)') invalid_tokens_record(i)%row_position
-                write(str_column, '(I0)') invalid_tokens_record(i)%column_position
+            DO i = 1, size(registro_tokens_invalidos)
+                write(str_linea, '(I0)') registro_tokens_invalidos(i)%posicion_fila
+                write(str_columna, '(I0)') registro_tokens_invalidos(i)%posicion_columna
                 
-                write(output_unit, '(A,I0)') "### Invalid Token #", i
-                write(output_unit, '(A)') ""
-                write(output_unit, '(A,A)') "* **Category:** ", &
-                    trim(invalid_tokens_record(i)%error_category)
-                write(output_unit, '(A,A)') "* **Sequence:** `", &
-                    trim(invalid_tokens_record(i)%token_sequence) // "`"
-                write(output_unit, '(A,A)') "* **Issue:** ", &
-                    trim(invalid_tokens_record(i)%issue_description)
-                write(output_unit, '(A,A,A,A)') "* **Location:** Line ", &
-                    trim(str_line), ", Column ", trim(str_column)
-                write(output_unit, '(A,A)') "* **Context:** ", &
-                    trim(invalid_tokens_record(i)%line_context)
-                write(output_unit, '(A)') ""
-                write(output_unit, '(A)') "---"
+                write(unidad_salida, '(A,I0)') "### Token Inválido #", i
+                write(unidad_salida, '(A)') ""
+                write(unidad_salida, '(A,A)') "* **Categoría:** ", &
+                    trim(registro_tokens_invalidos(i)%categoria_error)
+                write(unidad_salida, '(A,A)') "* **Secuencia:** `", &
+                    trim(registro_tokens_invalidos(i)%secuencia_token) // "`"
+                write(unidad_salida, '(A,A)') "* **Problema:** ", &
+                    trim(registro_tokens_invalidos(i)%descripcion_problema)
+                write(unidad_salida, '(A,A,A,A)') "* **Ubicación:** Línea ", &
+                    trim(str_linea), ", Columna ", trim(str_columna)
+                write(unidad_salida, '(A,A)') "* **Contexto:** ", &
+                    trim(registro_tokens_invalidos(i)%contexto_linea)
+                write(unidad_salida, '(A)') ""
+                write(unidad_salida, '(A)') "---"
             END DO
         else
-            write(output_unit, '(A)') "## No invalid tokens detected"
+            write(unidad_salida, '(A)') "## No se detectaron tokens inválidos"
         end if
         
-        close(output_unit)
-    end subroutine create_report
+        close(unidad_salida)
+    end subroutine generarReporte
 
-END MODULE lexAnalyzer
+END MODULE lexico_errores

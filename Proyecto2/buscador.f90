@@ -1,241 +1,230 @@
-MODULE buscador
+MODULE gestor_elementos
     USE, INTRINSIC :: ISO_FORTRAN_ENV
     IMPLICIT NONE
     PRIVATE
-    PUBLIC :: TokenRegistry, create_registry, add_token
-    PUBLIC :: modify_token, get_token_info, remove_token
-    PUBLIC :: display_tokens, token_exists
+    PUBLIC :: RegistroElementos, crear_registro, insertar
+    PUBLIC :: actualizar_elemento, obtener_info, eliminar
+    PUBLIC :: mostrar_elementos, existe_elemento
 
-    ! Module constants
-    INTEGER, PARAMETER :: STR_SHORT = 50
-    INTEGER, PARAMETER :: STR_MEDIUM = 100
-    INTEGER, PARAMETER :: STR_LONG = 250
-    INTEGER, PARAMETER :: INITIAL_CAPACITY = 8
+    INTEGER, PARAMETER :: TEXTO_CORTO = 30
+    INTEGER, PARAMETER :: TEXTO_MEDIO = 80
+    INTEGER, PARAMETER :: TEXTO_LARGO = 200
+    INTEGER, PARAMETER :: CAPACIDAD_BASE = 10
 
-    ! Token position type
-    TYPE :: Position
-        CHARACTER(STR_SHORT) :: x = ''
-        CHARACTER(STR_SHORT) :: y = ''
-    END TYPE Position
+    TYPE :: Coordenadas
+        INTEGER :: fila = 0
+        INTEGER :: columna = 0
+    END TYPE Coordenadas
 
-    ! Token metadata type
-    TYPE :: TokenMetadata
-        CHARACTER(STR_SHORT) :: creation_date = ''
-        CHARACTER(STR_SHORT) :: last_modified = ''
-        LOGICAL :: is_active = .TRUE.
-    END TYPE TokenMetadata
+    TYPE :: InfoAdicional
+        CHARACTER(TEXTO_CORTO) :: fecha_creacion = ''
+        CHARACTER(TEXTO_CORTO) :: fecha_modificacion = ''
+        INTEGER :: estado = 1
+        INTEGER :: prioridad = 0
+    END TYPE InfoAdicional
 
-    ! Main token type
-    TYPE :: TokenData
-        CHARACTER(STR_MEDIUM) :: id = ''
-        CHARACTER(STR_SHORT) :: class_type = ''
-        CHARACTER(STR_LONG) :: content = ''
-        CHARACTER(STR_MEDIUM) :: collection_id = ''
-        TYPE(Position) :: pos
-        TYPE(TokenMetadata) :: metadata
+    TYPE :: DatosElemento
+        INTEGER :: identificador = 0
+        CHARACTER(TEXTO_MEDIO) :: nombre = ''
+        CHARACTER(TEXTO_LARGO) :: descripcion = ''
+        CHARACTER(TEXTO_MEDIO) :: categoria = ''
+        TYPE(Coordenadas) :: ubicacion
+        TYPE(InfoAdicional) :: info
+        REAL :: valor = 0.0
     CONTAINS
-        PROCEDURE :: init => initialize_token
-        PROCEDURE :: update => update_token_data
-    END TYPE TokenData
+        PROCEDURE :: configurar => configurar_elemento
+        PROCEDURE :: modificar => modificar_elemento
+    END TYPE DatosElemento
 
-    ! Registry container type
-    TYPE :: TokenRegistry
+    TYPE :: RegistroElementos
         PRIVATE
-        TYPE(TokenData), ALLOCATABLE :: tokens(:)
-        INTEGER :: count = 0
-        INTEGER :: max_size = 0
+        TYPE(DatosElemento), ALLOCATABLE :: elementos(:)
+        INTEGER :: total = 0
+        INTEGER :: capacidad = 0
+        INTEGER :: ultimo_id = 0
     CONTAINS
-        PROCEDURE :: initialize => initialize_registry
-        PROCEDURE :: expand => expand_registry
-        PROCEDURE :: add => add_token_internal
-        PROCEDURE :: find => find_token
-        PROCEDURE :: remove => remove_token_internal
-    END TYPE TokenRegistry
+        PROCEDURE :: iniciar => iniciar_registro
+        PROCEDURE :: aumentar => aumentar_capacidad
+        PROCEDURE :: insertar => insertar_elemento
+        PROCEDURE :: buscar => buscar_elemento
+        PROCEDURE :: quitar => quitar_elemento
+    END TYPE RegistroElementos
 
 CONTAINS
 
-    ! === TokenData Methods ===
-    SUBROUTINE initialize_token(this, id, class_type)
-        CLASS(TokenData), INTENT(INOUT) :: this
-        CHARACTER(*), INTENT(IN) :: id, class_type
+    SUBROUTINE configurar_elemento(this, nombre, categoria)
+        CLASS(DatosElemento), INTENT(INOUT) :: this
+        CHARACTER(*), INTENT(IN) :: nombre, categoria
         
-        this%id = id
-        this%class_type = class_type
-        this%content = ''
-        this%collection_id = ''
-        this%metadata%is_active = .TRUE.
-        this%metadata%creation_date = get_current_timestamp()
-        this%metadata%last_modified = this%metadata%creation_date
-    END SUBROUTINE initialize_token
+        this%nombre = nombre
+        this%categoria = categoria
+        this%descripcion = ''
+        this%info%estado = 1
+        this%info%prioridad = 1
+        this%info%fecha_creacion = obtener_marca_tiempo()
+        this%info%fecha_modificacion = this%info%fecha_creacion
+    END SUBROUTINE configurar_elemento
 
-    SUBROUTINE update_token_data(this, content, collection_id, x, y)
-        CLASS(TokenData), INTENT(INOUT) :: this
-        CHARACTER(*), INTENT(IN), OPTIONAL :: content, collection_id, x, y
+    SUBROUTINE modificar_elemento(this, descripcion, valor, fila, columna)
+        CLASS(DatosElemento), INTENT(INOUT) :: this
+        CHARACTER(*), INTENT(IN), OPTIONAL :: descripcion
+        REAL, INTENT(IN), OPTIONAL :: valor
+        INTEGER, INTENT(IN), OPTIONAL :: fila, columna
         
-        IF (PRESENT(content)) this%content = content
-        IF (PRESENT(collection_id)) this%collection_id = collection_id
-        IF (PRESENT(x)) this%pos%x = x
-        IF (PRESENT(y)) this%pos%y = y
-        this%metadata%last_modified = get_current_timestamp()
-    END SUBROUTINE update_token_data
+        IF (PRESENT(descripcion)) this%descripcion = descripcion
+        IF (PRESENT(valor)) this%valor = valor
+        IF (PRESENT(fila)) this%ubicacion%fila = fila
+        IF (PRESENT(columna)) this%ubicacion%columna = columna
+        this%info%fecha_modificacion = obtener_marca_tiempo()
+        this%info%prioridad = this%info%prioridad + 1
+    END SUBROUTINE modificar_elemento
 
-    ! === TokenRegistry Methods ===
-    SUBROUTINE initialize_registry(this)
-        CLASS(TokenRegistry), INTENT(INOUT) :: this
+    SUBROUTINE iniciar_registro(this)
+        CLASS(RegistroElementos), INTENT(INOUT) :: this
         
-        this%max_size = INITIAL_CAPACITY
-        this%count = 0
-        ALLOCATE(this%tokens(this%max_size))
-    END SUBROUTINE initialize_registry
+        this%capacidad = CAPACIDAD_BASE
+        this%total = 0
+        this%ultimo_id = 0
+        ALLOCATE(this%elementos(this%capacidad))
+    END SUBROUTINE iniciar_registro
 
-    SUBROUTINE expand_registry(this)
-        CLASS(TokenRegistry), INTENT(INOUT) :: this
-        TYPE(TokenData), ALLOCATABLE :: temp(:)
-        INTEGER :: new_size
+    SUBROUTINE aumentar_capacidad(this)
+        CLASS(RegistroElementos), INTENT(INOUT) :: this
+        TYPE(DatosElemento), ALLOCATABLE :: temporal(:)
+        INTEGER :: nueva_capacidad
         
-        new_size = this%max_size * 2
-        ALLOCATE(temp(new_size))
-        temp(1:this%count) = this%tokens(1:this%count)
+        nueva_capacidad = this%capacidad * 2
+        ALLOCATE(temporal(nueva_capacidad))
+        temporal(1:this%total) = this%elementos(1:this%total)
         
-        DEALLOCATE(this%tokens)
-        ALLOCATE(this%tokens(new_size))
-        this%tokens = temp
-        this%max_size = new_size
+        DEALLOCATE(this%elementos)
+        ALLOCATE(this%elementos(nueva_capacidad))
+        this%elementos = temporal
+        this%capacidad = nueva_capacidad
         
-        DEALLOCATE(temp)
-    END SUBROUTINE expand_registry
+        DEALLOCATE(temporal)
+    END SUBROUTINE aumentar_capacidad
 
-    FUNCTION find_token(this, id) RESULT(idx)
-        CLASS(TokenRegistry), INTENT(IN) :: this
-        CHARACTER(*), INTENT(IN) :: id
-        INTEGER :: idx, i
+    FUNCTION buscar_elemento(this, id) RESULT(indice)
+        CLASS(RegistroElementos), INTENT(IN) :: this
+        INTEGER, INTENT(IN) :: id
+        INTEGER :: indice, i
         
-        idx = -1
-        DO i = 1, this%count
-            IF (TRIM(this%tokens(i)%id) == TRIM(id)) THEN
-                idx = i
+        indice = -1
+        DO i = 1, this%total
+            IF (this%elementos(i)%identificador == id) THEN
+                indice = i
                 EXIT
             END IF
         END DO
-    END FUNCTION find_token
+    END FUNCTION buscar_elemento
 
-    ! === Public Interface ===
-    FUNCTION create_registry() RESULT(registry)
-        TYPE(TokenRegistry) :: registry
-        CALL registry%initialize()
-    END FUNCTION create_registry
+    FUNCTION crear_registro() RESULT(registro)
+        TYPE(RegistroElementos) :: registro
+        CALL registro%iniciar()
+    END FUNCTION crear_registro
 
-    SUBROUTINE add_token(registry, id, class_type, content, collection_id, x, y)
-        TYPE(TokenRegistry), INTENT(INOUT) :: registry
-        CHARACTER(*), INTENT(IN) :: id, class_type
-        CHARACTER(*), INTENT(IN), OPTIONAL :: content, collection_id, x, y
-        TYPE(TokenData) :: new_token
+    SUBROUTINE insertar(registro, nombre, categoria, descripcion, valor, fila, columna)
+        TYPE(RegistroElementos), INTENT(INOUT) :: registro
+        CHARACTER(*), INTENT(IN) :: nombre, categoria
+        CHARACTER(*), INTENT(IN), OPTIONAL :: descripcion
+        REAL, INTENT(IN), OPTIONAL :: valor
+        INTEGER, INTENT(IN), OPTIONAL :: fila, columna
+        TYPE(DatosElemento) :: nuevo
         
-        IF (registry%find(id) > 0) THEN
-            PRINT *, "Warning: Token ID already exists:", TRIM(id)
-            RETURN
+        registro%ultimo_id = registro%ultimo_id + 1
+        nuevo%identificador = registro%ultimo_id
+        
+        CALL nuevo%configurar(nombre, categoria)
+        IF (PRESENT(descripcion)) CALL nuevo%modificar(descripcion=descripcion)
+        IF (PRESENT(valor)) CALL nuevo%modificar(valor=valor)
+        IF (PRESENT(fila) .AND. PRESENT(columna)) THEN
+            CALL nuevo%modificar(fila=fila, columna=columna)
         END IF
         
-        CALL new_token%init(id, class_type)
-        IF (PRESENT(content)) CALL new_token%update(content=content)
-        IF (PRESENT(collection_id)) CALL new_token%update(collection_id=collection_id)
-        IF (PRESENT(x) .AND. PRESENT(y)) CALL new_token%update(x=x, y=y)
-        
-        CALL registry%add_token_internal(new_token)
-    END SUBROUTINE add_token
+        CALL registro%insertar_elemento(nuevo)
+    END SUBROUTINE insertar
 
-    SUBROUTINE add_token_internal(this, token)
-        CLASS(TokenRegistry), INTENT(INOUT) :: this
-        TYPE(TokenData), INTENT(IN) :: token
+    SUBROUTINE insertar_elemento(this, elemento)
+        CLASS(RegistroElementos), INTENT(INOUT) :: this
+        TYPE(DatosElemento), INTENT(IN) :: elemento
         
-        IF (this%count == this%max_size) CALL this%expand()
+        IF (this%total == this%capacidad) CALL this%aumentar()
         
-        this%count = this%count + 1
-        this%tokens(this%count) = token
-    END SUBROUTINE add_token_internal
+        this%total = this%total + 1
+        this%elementos(this%total) = elemento
+    END SUBROUTINE insertar_elemento
 
-    SUBROUTINE modify_token(registry, id, content, collection_id, x, y)
-        TYPE(TokenRegistry), INTENT(INOUT) :: registry
-        CHARACTER(*), INTENT(IN) :: id
-        CHARACTER(*), INTENT(IN), OPTIONAL :: content, collection_id, x, y
+    SUBROUTINE actualizar_elemento(registro, id, descripcion, valor, fila, columna)
+        TYPE(RegistroElementos), INTENT(INOUT) :: registro
+        INTEGER, INTENT(IN) :: id
+        CHARACTER(*), INTENT(IN), OPTIONAL :: descripcion
+        REAL, INTENT(IN), OPTIONAL :: valor
+        INTEGER, INTENT(IN), OPTIONAL :: fila, columna
         INTEGER :: idx
         
-        idx = registry%find(id)
+        idx = registro%buscar(id)
         IF (idx > 0) THEN
-            CALL registry%tokens(idx)%update(content, collection_id, x, y)
+            CALL registro%elementos(idx)%modificar(descripcion, valor, fila, columna)
         END IF
-    END SUBROUTINE modify_token
+    END SUBROUTINE actualizar_elemento
 
-    FUNCTION get_token_info(registry, id) RESULT(token)
-        TYPE(TokenRegistry), INTENT(IN) :: registry
-        CHARACTER(*), INTENT(IN) :: id
-        TYPE(TokenData) :: token
+    FUNCTION obtener_info(registro, id) RESULT(elemento)
+        TYPE(RegistroElementos), INTENT(IN) :: registro
+        INTEGER, INTENT(IN) :: id
+        TYPE(DatosElemento) :: elemento
         INTEGER :: idx
         
-        idx = registry%find(id)
-        IF (idx > 0) token = registry%tokens(idx)
-    END FUNCTION get_token_info
+        idx = registro%buscar(id)
+        IF (idx > 0) elemento = registro%elementos(idx)
+    END FUNCTION obtener_info
 
-    SUBROUTINE display_tokens(registry)
-        TYPE(TokenRegistry), INTENT(IN) :: registry
+    SUBROUTINE mostrar_elementos(registro)
+        TYPE(RegistroElementos), INTENT(IN) :: registro
         INTEGER :: i
         
-        IF (registry%count == 0) THEN
-            PRINT *, "Registry is empty"
+        IF (registro%total == 0) THEN
+            PRINT *, "No hay elementos registrados"
             RETURN
         END IF
-        
-        DO i = 1, registry%count
-            PRINT *, "=== Token", i, "==="
-            PRINT *, "ID:", TRIM(registry%tokens(i)%id)
-            PRINT *, "Type:", TRIM(registry%tokens(i)%class_type)
-            PRINT *, "Content:", TRIM(registry%tokens(i)%content)
-            PRINT *, "Collection:", TRIM(registry%tokens(i)%collection_id)
-            PRINT *, "Position:", TRIM(registry%tokens(i)%pos%x), ",", &
-                    TRIM(registry%tokens(i)%pos%y)
-            PRINT *, "Active:", registry%tokens(i)%metadata%is_active
-            PRINT *, "Last Modified:", TRIM(registry%tokens(i)%metadata%last_modified)
-            PRINT *, "=============="
-        END DO
-    END SUBROUTINE display_tokens
+    END SUBROUTINE mostrar_elementos
 
-    FUNCTION token_exists(registry, id) RESULT(exists)
-        TYPE(TokenRegistry), INTENT(IN) :: registry
-        CHARACTER(*), INTENT(IN) :: id
-        LOGICAL :: exists
+    FUNCTION existe_elemento(registro, id) RESULT(existe)
+        TYPE(RegistroElementos), INTENT(IN) :: registro
+        INTEGER, INTENT(IN) :: id
+        LOGICAL :: existe
         
-        exists = registry%find(id) > 0
-    END FUNCTION token_exists
+        existe = registro%buscar(id) > 0
+    END FUNCTION existe_elemento
 
-    SUBROUTINE remove_token(registry, id)
-        TYPE(TokenRegistry), INTENT(INOUT) :: registry
-        CHARACTER(*), INTENT(IN) :: id
+    SUBROUTINE eliminar(registro, id)
+        TYPE(RegistroElementos), INTENT(INOUT) :: registro
+        INTEGER, INTENT(IN) :: id
         
-        CALL registry%remove(id)
-    END SUBROUTINE remove_token
+        CALL registro%quitar(id)
+    END SUBROUTINE eliminar
 
-    SUBROUTINE remove_token_internal(this, id)
-        CLASS(TokenRegistry), INTENT(INOUT) :: this
-        CHARACTER(*), INTENT(IN) :: id
+    SUBROUTINE quitar_elemento(this, id)
+        CLASS(RegistroElementos), INTENT(INOUT) :: this
+        INTEGER, INTENT(IN) :: id
         INTEGER :: idx, i
         
-        idx = this%find(id)
+        idx = this%buscar(id)
         IF (idx > 0) THEN
-            DO i = idx, this%count - 1
-                this%tokens(i) = this%tokens(i + 1)
+            DO i = idx, this%total - 1
+                this%elementos(i) = this%elementos(i + 1)
             END DO
-            this%count = this%count - 1
+            this%total = this%total - 1
         END IF
-    END SUBROUTINE remove_token_internal
+    END SUBROUTINE quitar_elemento
 
-    ! === Utility Functions ===
-    FUNCTION get_current_timestamp() RESULT(timestamp)
-        CHARACTER(STR_SHORT) :: timestamp
-        INTEGER :: values(8)
+    FUNCTION obtener_marca_tiempo() RESULT(marca)
+        CHARACTER(TEXTO_CORTO) :: marca
+        INTEGER :: valores(8)
         
-        CALL DATE_AND_TIME(VALUES=values)
-        WRITE(timestamp, '(I4,"-",I2.2,"-",I2.2," ",I2.2,":",I2.2,":",I2.2)') &
-              values(1), values(2), values(3), values(5), values(6), values(7)
-    END FUNCTION get_current_timestamp
+        CALL DATE_AND_TIME(VALUES=valores)
+        WRITE(marca, '(I4,"-",I2.2,"-",I2.2,"@",I2.2,":",I2.2)') &
+              valores(1), valores(2), valores(3), valores(5), valores(6)
+    END FUNCTION obtener_marca_tiempo
 
-END MODULE buscador
+END MODULE gestor_elementos
