@@ -141,22 +141,22 @@ Se aplicó el método del árbol siguiendo estos pasos:
 - Cálculo de First y Last
 - Trazado de follows
 
-(./Document/arbol.jpg)
+![arbol](./Document/arbol.jpg )
 *Figura 2: Método del árbol aplicado*
 
 #### 3. Tablas de Construcción
 ##### Tabla de Follow
-(./Document/follow.jpg)
+![follow](./Document/follow.jpg)
 *Figura 3: Tabla de Follow resultante*
 
 ##### Tabla de Transiciones
-(./Document/transiciones.jpg)
+![transiciones](./Document/transiciones.jpg)
 *Figura 4: Tabla de transiciones del autómata*
 
 #### 4. Autómata Resultante
 El autómata final que reconoce el lenguaje del proyecto:
 
-(./Document/afd.jpg)
+![afd](./Document/afd.jpg)
 *Figura 5: Autómata Finito Determinista resultante*
 
 # Patrones y Tokens Reconocidos
@@ -164,7 +164,7 @@ El autómata final que reconoce el lenguaje del proyecto:
 Este documento describe los patrones léxicos y tokens asociados en nuestro lenguaje de programación.
 
 ## Tabla de Patrones y Tokens
-(./Document/tokens.jpg)
+![tokens](./Document/tokens.jpg)
 *Figura 6: Tabla de tokens*
 ## Leyenda de Patrones
 
@@ -312,7 +312,7 @@ Este documento describe los patrones léxicos y tokens asociados en nuestro leng
    - Los comentarios no afectan la sintaxis
 
 ## Diagrama Sintáctico
-(./Document/libre.jpg)
+![sintactico](./Document/libre.jpg)
 *Figura 7: Diagrama de gramatica libre de contexto*
 
 ## Notas de Implementación
